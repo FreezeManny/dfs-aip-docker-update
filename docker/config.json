@@ -3,13 +3,7 @@
         {
             "name": "GEN",
             "flight_rule": "vfr",
-            "filters": ["GEN 3"],
-            "additional_params": ""
-        },
-        {
-            "name": "AD 2",
-            "flight_rule": "vfr",
-            "filters": ["AD 2"],
+            "filters": ["GEN 3", "GEN 2", "GEN 1"],
             "additional_params": ""
         }
     ]

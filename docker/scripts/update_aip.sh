@@ -39,10 +39,21 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
     # Extract profile info
     PROFILE_NAME=$(jq -r ".profiles[$i].name" "$CONFIG_FILE")
     FLIGHT_RULE=$(jq -r ".profiles[$i].flight_rule" "$CONFIG_FILE" | tr '[:upper:]' '[:lower:]')
-    AIP_SECTIONS=$(jq -r ".profiles[$i].filters | join(\",\")" "$CONFIG_FILE")
-    CLEANED_SECTIONS=$(echo "$AIP_SECTIONS" | tr -d '"')
+    
+    # Get the filters for command-line arguments and conditional checks
+    AIP_SECTIONS=$(jq -r ".profiles[$i].filters | join(\" \")" "$CONFIG_FILE")
+    
+    # Format filters for eval command
+    FILTER_COUNT=$(jq -r ".profiles[$i].filters | length" "$CONFIG_FILE")
+    FILTER_ARGS=""
+    for ((j=0; j<$FILTER_COUNT; j++)); do
+        FILTER=$(jq -r ".profiles[$i].filters[$j]" "$CONFIG_FILE")
+        FILTER_ARGS="$FILTER_ARGS \"$FILTER\""
+    done
+    
 
     echo "=== Processing profile: $PROFILE_NAME ==="
+    
     echo "[$(date)] Processing profile: $PROFILE_NAME" >> "$RUN_LOG_FILE"
     
     # Create a file to store the last processed AIRAC date for this profile
@@ -68,26 +79,27 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
         echo "[$(date)] [$PROFILE_NAME] New AIRAC cycle detected ($CURRENT_AIRAC_DATE). Updating..." >> "$RUN_LOG_FILE"
         
         if [ -n "$AIP_SECTIONS" ]; then
-            echo "[$PROFILE_NAME] Downloading sections: $CLEANED_SECTIONS"
-            
+            echo "[$PROFILE_NAME] Downloading sections: $AIP_SECTIONS"
             
             # Generate change log if we have a previous AIRAC to compare with
             if [ -n "$LAST_AIRAC_DATE" ]; then
-                echo "[$PROFILE_NAME] Generating change log between $LAST_AIRAC_DATE and $CURRENT_AIRAC_DATE"
-                DIFF_LOG_FILE="/app/output/aip-${PROFILE_NAME}-changes-${LAST_AIRAC_DATE}-to-${CURRENT_AIRAC_DATE}.txt"
-                if ! python3 ./aip.py page diff --$FLIGHT_RULE -b "$LAST_AIRAC_DATE" -a "$CURRENT_AIRAC_DATE" -f "$AIP_SECTIONS" > "$DIFF_LOG_FILE" 2>> "$RUN_LOG_FILE"; then
-                    echo "[$PROFILE_NAME] Error during page diff. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
+                echo "[$PROFILE_NAME] Downloading and Generating PDF summary"
+                OUTPUT_FILE="/app/output/${PROFILE_NAME}-${CURRENT_AIRAC_DATE}.pdf"
+                # Use eval to properly expand the filter arguments
+                if ! eval "python3 ./aip.py pdf --output \"$OUTPUT_FILE\" summary --$FLIGHT_RULE -f $FILTER_ARGS 2>> \"$RUN_LOG_FILE\""; then
+                    echo "[$PROFILE_NAME] Error during PDF generation. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
                     failed "$PROFILE_NAME" "$LAST_AIRAC_FILE"
                     continue
                 else
-                    echo "[$PROFILE_NAME] Change log generated at $DIFF_LOG_FILE"
+                    echo "[$PROFILE_NAME] PDF generated at $OUTPUT_FILE"
                 fi
             fi
             
             # Generate PDF summary with proper output path
-            echo "[$PROFILE_NAME] Generating PDF summary"
+            echo "[$PROFILE_NAME] Downloading and Generating PDF summary"
             OUTPUT_FILE="/app/output/${PROFILE_NAME}-${CURRENT_AIRAC_DATE}.pdf"
-            if ! python3 ./aip.py pdf --output "$OUTPUT_FILE" summary --$FLIGHT_RULE -f "$CLEANED_SECTIONS" 2>> "$RUN_LOG_FILE"; then
+            # Use the same eval approach here
+            if ! eval "python3 ./aip.py pdf --output \"$OUTPUT_FILE\" summary --$FLIGHT_RULE -f $FILTER_ARGS 2>> \"$RUN_LOG_FILE\""; then
                 echo "[$PROFILE_NAME] Error during PDF generation. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
                 failed "$PROFILE_NAME" "$LAST_AIRAC_FILE"
                 continue
