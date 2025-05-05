@@ -1,12 +1,13 @@
 FROM debian:bullseye-slim
 
-# Install Python and cron
+# Install Python, cron, and jq
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-dev \
     build-essential \
     cron \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -32,7 +33,6 @@ RUN mkdir -p /app/.cache/dfs-aip
 RUN mkdir -p /app/output
 
 # Setup cron job
-# Update this line in the Dockerfile
 RUN echo "${CRON_SCHEDULE:-0 0 * * *} /app/update_aip.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/aip-update && \
     chmod 0644 /etc/cron.d/aip-update && \
     crontab /etc/cron.d/aip-update

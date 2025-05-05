@@ -6,14 +6,8 @@ services:
     volumes:
       - ./cache:/root/.cache/
       - ./output:/app/output
+      - ./config.json:/app/config.json
     environment:
-      # Flight Rule: VFR or IFR
-      - FLIGHT_RULE=VFR
-      
-      # Specify AIP sections to download, separated by spaces
-      # Format: Multiple sections in one string, each section in quotes if it contains spaces
-      - AIP_SECTIONS="GEN 3"
-      
       # Set to "true" to run update when container starts
       - AUTO_UPDATE_ON_START=true
 
