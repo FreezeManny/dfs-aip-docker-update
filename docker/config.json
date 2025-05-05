@@ -1,0 +1,10 @@
+{
+    "profiles": [
+        {
+            "name": "AD",
+            "flight_rule": "vfr",
+            "filters": ["GEN 3", "GEN 4"],
+            "additional_params": ""
+        }
+    ]
+}

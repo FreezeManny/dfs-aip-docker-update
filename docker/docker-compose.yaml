@@ -4,10 +4,23 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     volumes:
-      - dfs-aip-cache:/home/user/.cache/dfs-aip
+      - ./cache:/root/.cache/
       - ./output:/app/output
     environment:
-      - HOME=/home/user
+      # Flight Rule: VFR or IFR
+      - FLIGHT_RULE=VFR
+      
+      # Specify AIP sections to download, separated by spaces
+      # Format: Multiple sections in one string, each section in quotes if it contains spaces
+      - AIP_SECTIONS="GEN 3"
+      
+      # Set to "true" to run update when container starts
+      - AUTO_UPDATE_ON_START=true
 
-volumes:
-  dfs-aip-cache:
+      # Optional: Custom cron schedule (default: daily at midnight)
+      - CRON_SCHEDULE=0 0 * * *
+
+    restart: unless-stopped
+
+#volumes:
+#  dfs-aip-cache:
