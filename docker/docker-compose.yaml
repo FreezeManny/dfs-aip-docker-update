@@ -1,0 +1,13 @@
+services:
+  dfs-aip:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - dfs-aip-cache:/home/user/.cache/dfs-aip
+      - ./output:/app/output
+    environment:
+      - HOME=/home/user
+
+volumes:
+  dfs-aip-cache:
