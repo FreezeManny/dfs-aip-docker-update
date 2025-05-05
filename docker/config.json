@@ -5,6 +5,13 @@
             "flight_rule": "vfr",
             "filters": ["GEN 3", "GEN 2", "GEN 1"],
             "additional_params": ""
+        },
+        {
+            "name": "AD",
+            "flight_rule": "vfr",
+            "filters": ["AD 2"],
+            "additional_params": ""
         }
     ]
 }
+

@@ -9,6 +9,22 @@ CONFIG_FILE="/app/config.json"
 RUN_LOG_FILE="/app/output/aip-run-log.txt"
 echo "[$(date)] Script execution started" >> "$RUN_LOG_FILE"
 
+# Create a hash of the config file to detect changes
+CONFIG_HASH_DIR="/root/.cache"
+mkdir -p "$CONFIG_HASH_DIR"
+CONFIG_HASH_FILE="$CONFIG_HASH_DIR/config_hash.txt"
+CURRENT_CONFIG_HASH=$(md5sum "$CONFIG_FILE" | awk '{print $1}')
+PREVIOUS_CONFIG_HASH=""
+if [ -f "$CONFIG_HASH_FILE" ]; then
+    PREVIOUS_CONFIG_HASH=$(cat "$CONFIG_HASH_FILE")
+fi
+CONFIG_CHANGED=false
+if [ "$CURRENT_CONFIG_HASH" != "$PREVIOUS_CONFIG_HASH" ]; then
+    CONFIG_CHANGED=true
+    echo "Configuration has changed since last run. Will force updates."
+    echo "[$(date)] Configuration changed. Forcing updates." >> "$RUN_LOG_FILE"
+fi
+
 # Check if aip.py has correct shebang and fix if needed
 if grep -q "^#\!/bin/env" aip.py; then
     echo "Fixing shebang in aip.py"
@@ -51,7 +67,6 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
         FILTER_ARGS="$FILTER_ARGS \"$FILTER\""
     done
     
-
     echo "=== Processing profile: $PROFILE_NAME ==="
     
     echo "[$(date)] Processing profile: $PROFILE_NAME" >> "$RUN_LOG_FILE"
@@ -73,10 +88,16 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
     echo "[$PROFILE_NAME] Current AIRAC date: $CURRENT_AIRAC_DATE"
     echo "[$PROFILE_NAME] Previous AIRAC date: $LAST_AIRAC_DATE"
     
-    # Check if there's a new AIRAC cycle or force update
-    if [ "$CURRENT_AIRAC_DATE" != "$LAST_AIRAC_DATE" ]; then
-        echo "[$PROFILE_NAME] New AIRAC cycle detected ($CURRENT_AIRAC_DATE). Updating..."
-        echo "[$(date)] [$PROFILE_NAME] New AIRAC cycle detected ($CURRENT_AIRAC_DATE). Updating..." >> "$RUN_LOG_FILE"
+    # Check if there's a new AIRAC cycle or configuration changed
+    if [ "$CURRENT_AIRAC_DATE" != "$LAST_AIRAC_DATE" ] || [ "$CONFIG_CHANGED" = true ]; then
+        # Different log message based on what triggered the update
+        if [ "$CONFIG_CHANGED" = true ] && [ "$CURRENT_AIRAC_DATE" = "$LAST_AIRAC_DATE" ]; then
+            echo "[$PROFILE_NAME] Configuration changed. Forcing update..."
+            echo "[$(date)] [$PROFILE_NAME] Configuration changed. Forcing update..." >> "$RUN_LOG_FILE"
+        else
+            echo "[$PROFILE_NAME] New AIRAC cycle detected ($CURRENT_AIRAC_DATE). Updating..."
+            echo "[$(date)] [$PROFILE_NAME] New AIRAC cycle detected ($CURRENT_AIRAC_DATE). Updating..." >> "$RUN_LOG_FILE"
+        fi
         
         if [ -n "$AIP_SECTIONS" ]; then
             echo "[$PROFILE_NAME] Downloading sections: $AIP_SECTIONS"
@@ -115,14 +136,18 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
         echo "[$PROFILE_NAME] Updated last processed AIRAC date to $CURRENT_AIRAC_DATE"
         echo "[$(date)] [$PROFILE_NAME] Updated AIRAC from $LAST_AIRAC_DATE to $CURRENT_AIRAC_DATE" >> "$RUN_LOG_FILE"
     else
-        echo "[$PROFILE_NAME] No new AIRAC cycle detected. Current cycle ($CURRENT_AIRAC_DATE) already processed."
-        echo "[$(date)] [$PROFILE_NAME] No new AIRAC cycle detected. Current cycle ($CURRENT_AIRAC_DATE) already processed." >> "$RUN_LOG_FILE"
+        echo "[$PROFILE_NAME] No new AIRAC cycle detected and no configuration changes. Current cycle ($CURRENT_AIRAC_DATE) already processed."
+        echo "[$(date)] [$PROFILE_NAME] No new AIRAC cycle detected and no configuration changes. Current cycle ($CURRENT_AIRAC_DATE) already processed." >> "$RUN_LOG_FILE"
     fi
     
     echo "=== Completed profile: $PROFILE_NAME ==="
     echo "[$(date)] Completed profile: $PROFILE_NAME" >> "$RUN_LOG_FILE"
     echo ""
 done
+
+# Save the current config hash after successful processing
+echo "$CURRENT_CONFIG_HASH" > "$CONFIG_HASH_FILE"
+echo "[$(date)] Saved current configuration state" >> "$RUN_LOG_FILE"
 
 echo "[$(date)] AIP update process completed for all profiles"
 echo "[$(date)] Script execution completed" >> "$RUN_LOG_FILE"
