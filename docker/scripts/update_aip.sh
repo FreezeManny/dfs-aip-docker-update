@@ -105,7 +105,7 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
             # Generate change log if we have a previous AIRAC to compare with
             if [ -n "$LAST_AIRAC_DATE" ]; then
                 echo "[$PROFILE_NAME] Downloading and Generating PDF summary"
-                OUTPUT_FILE="/app/output/${PROFILE_NAME}-${CURRENT_AIRAC_DATE}.pdf"
+                OUTPUT_FILE="/app/output/${PROFILE_NAME}_${CURRENT_AIRAC_DATE}.pdf"
                 # Use eval to properly expand the filter arguments
                 if ! eval "python3 ./aip.py pdf --output \"$OUTPUT_FILE\" summary --$FLIGHT_RULE -f $FILTER_ARGS 2>> \"$RUN_LOG_FILE\""; then
                     echo "[$PROFILE_NAME] Error during PDF generation. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
