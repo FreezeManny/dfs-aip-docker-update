@@ -1,15 +1,9 @@
 {
     "profiles": [
         {
-            "name": "Airport EDDF",
+            "name": "Airports",
             "flight_rule": "vfr",
-            "filters": ["AD EDDF"],
-            "additional_params": ""
-        },
-        {
-            "name": "Airport EDRY",
-            "flight_rule": "vfr",
-            "filters": ["AD EDRY"],
+            "filters": ["AD"],
             "additional_params": ""
         }
     ],

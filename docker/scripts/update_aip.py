@@ -111,10 +111,10 @@ def main():
         
         # Fetch the latest TOC
         log(f"Fetching latest AIP table of contents for {profile_name}...")
-        run_command(f"python3 {aip_path} toc fetch --{flight_rule}", run_log_file)
+        run_command(f"python3 -u {aip_path} toc fetch --{flight_rule}", run_log_file)
         
         # Get the current AIRAC date from the list (most recent one)
-        current_airac_date = run_command(f"python3 {aip_path} toc list --{flight_rule} | head -n 1 | awk '{{print $2}}'", 
+        current_airac_date = run_command(f"python3 -u {aip_path} toc list --{flight_rule} | head -n 1 | awk '{{print $2}}'", 
                                         run_log_file, capture_output=True)
         
         log(f"[{profile_name}] Current AIRAC date: {current_airac_date}, Previous AIRAC date: {last_airac_date}", run_log_file)
@@ -136,7 +136,7 @@ def main():
                 
                 # Prepare the filter arguments
                 filter_args = " ".join([f'"{f}"' for f in aip_sections])
-                command = f'python3 {aip_path} pdf --output "{output_file}" summary --{flight_rule} -f {filter_args}'
+                command = f'python3 -u {aip_path} pdf --output "{output_file}" summary --{flight_rule} -f {filter_args}'
                 
                 if not run_command(command, run_log_file):
                     log(f"[{profile_name}] Error during PDF generation. Check {run_log_file} for details.", run_log_file)

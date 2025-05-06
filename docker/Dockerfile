@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     ocrmypdf \
     pngquant \
+    jbig2dec \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -25,13 +26,14 @@ COPY docker/scripts/entrypoint.sh /entrypoint.sh
 
 # Make scripts executable
 RUN chmod +x /entrypoint.sh
+RUN chmod +x /app/update_aip.py
 
 # Install requirements
 RUN pip3 install --no-cache-dir -r ./basic-aip/requirements.txt && \
     pip3 install --no-cache-dir -r ./requirements.txt
 
 # Setup cron job
-RUN echo "${CRON_SCHEDULE:-0 0 * * *} /app/update_aip.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/aip-update && \
+RUN echo "${CRON_SCHEDULE:-0 0 * * *} python3 -u /app/update_aip.py >> /var/log/cron.log 2>&1" > /etc/cron.d/aip-update && \
     chmod 0644 /etc/cron.d/aip-update && \
     crontab /etc/cron.d/aip-update
 
