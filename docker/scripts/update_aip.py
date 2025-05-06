@@ -71,17 +71,18 @@ def main():
         log("Configuration changed. Forcing updates.", run_log_file)
 
     # Check if aip.py has correct shebang and fix if needed
-    with open("aip.py", "r") as f:
+    aip_path = os.path.join(root_directory, "basic-aip/aip.py")
+    with open(aip_path, "r") as f:
         content = f.read()
     
     if re.search(r"^#\!/bin/env", content):
         log("Fixing shebang in aip.py")
         content = re.sub(r"^#\!/bin/env", "#!/usr/bin/env", content)
-        with open("aip.py", "w") as f:
+        with open(aip_path, "w") as f:
             f.write(content)
 
     # Ensure script is executable
-    os.chmod("aip.py", os.stat("aip.py").st_mode | 0o111)
+    os.chmod(aip_path, os.stat(aip_path).st_mode | 0o111)
 
     # Load the config file
     with open(config_file, "r") as f:
@@ -113,10 +114,10 @@ def main():
         
         # Fetch the latest TOC
         log(f"Fetching latest AIP table of contents for {profile_name}...")
-        run_command(f"python3 ./aip.py toc fetch --{flight_rule}", run_log_file)
+        run_command(f"python3 {aip_path} toc fetch --{flight_rule}", run_log_file)
         
         # Get the current AIRAC date from the list (most recent one)
-        current_airac_date = run_command(f"python3 ./aip.py toc list --{flight_rule} | head -n 1 | awk '{{print $2}}'", 
+        current_airac_date = run_command(f"python3 {aip_path} toc list --{flight_rule} | head -n 1 | awk '{{print $2}}'", 
                                         run_log_file, capture_output=True)
         
         log(f"[{profile_name}] Current AIRAC date: {current_airac_date}")
@@ -141,7 +142,7 @@ def main():
                 
                 # Prepare the filter arguments
                 filter_args = " ".join([f'"{f}"' for f in aip_sections])
-                command = f'python3 ./aip.py pdf --output "{output_file}" summary --{flight_rule} -f {filter_args}'
+                command = f'python3 {aip_path} pdf --output "{output_file}" summary --{flight_rule} -f {filter_args}'
                 
                 if not run_command(command, run_log_file):
                     log(f"[{profile_name}] Error during PDF generation. Check {run_log_file} for details.", run_log_file)
