@@ -149,7 +149,11 @@ def main():
                     ocr_output_file = os.path.join(root_directory, f"output/{profile_name}-{current_airac_date}_ocr.pdf")
                     try:
                         # The quiet option suppresses progress messages
-                        ocrmypdf.ocr(output_file, ocr_output_file, quiet=True)
+                        ocrmypdf.ocr(output_file, 
+                                     ocr_output_file,
+                                     optimize=3,
+                                     quiet=True
+                                     )
                         log(f"[{profile_name}] OCR conversion completed. Output at {ocr_output_file}")
                     except Exception as e:
                         log(f"[{profile_name}] Error during OCR conversion: {str(e)}", run_log_file)
