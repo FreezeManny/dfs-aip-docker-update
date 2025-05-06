@@ -8,8 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cron \
     jq \
-    ocrmypdf \
-    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -17,6 +15,7 @@ WORKDIR /app
 
 # Copy application code
 COPY basic/ /app/basic-aip
+COPY docker/scripts/requirements.txt /app/scripts/requirements.txt
 
 # Copy scripts
 #COPY docker/scripts/update_aip.sh /app/update_aip.sh
@@ -26,8 +25,8 @@ COPY docker/scripts/entrypoint.sh /entrypoint.sh
 #RUN chmod +x /app/update_aip.sh /entrypoint.sh
 
 # Install requirements
-RUN pip3 install --no-cache-dir -r ./basic-aip/requirements.txt
-
+RUN pip3 install --no-cache-dir -r ./basic-aip/requirements.txt && \
+    pip3 install --no-cache-dir -r ./scripts/requirements.txt
 # Create cache directory
 RUN mkdir -p /app/.cache/dfs-aip
 

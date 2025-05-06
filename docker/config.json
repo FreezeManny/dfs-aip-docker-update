@@ -3,7 +3,7 @@
         {
             "name": "Airport Charts",
             "flight_rule": "vfr",
-            "filters": ["AD"],
+            "filters": ["AD EDDF"],
             "additional_params": ""
         }
     ],

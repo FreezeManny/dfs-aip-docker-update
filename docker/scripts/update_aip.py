@@ -7,6 +7,7 @@ import subprocess
 import datetime
 import re
 import sys
+import ocrmypdf
 
 root_directory = "/app/"  # Keep this definition as is
 
@@ -147,12 +148,14 @@ def main():
                     # Convert the generated PDF to make it OCR searchable
                     log(f"[{profile_name}] Generating OCR PDF")
                     ocr_output_file = os.path.join(root_directory, f"output/{profile_name}-{current_airac_date}_ocr.pdf")
-                    if not run_command(f'ocrmypdf "{output_file}" "{ocr_output_file}"', run_log_file):
-                        log(f"[{profile_name}] Error during OCR conversion. Check {run_log_file} for details.", run_log_file)
+                    try:
+                        # The quiet option suppresses progress messages
+                        ocrmypdf.ocr(output_file, ocr_output_file, quiet=True)
+                        log(f"[{profile_name}] OCR conversion completed. Output at {ocr_output_file}")
+                    except Exception as e:
+                        log(f"[{profile_name}] Error during OCR conversion: {str(e)}", run_log_file)
                         failed(profile_name, last_airac_file, run_log_file)
                         continue
-                    else:
-                        log(f"[{profile_name}] OCR conversion completed. Output at {ocr_output_file}")
             else:
                 log(f"[{profile_name}] No AIP_SECTIONS specified. Skipping page fetch and PDF generation.")
             
