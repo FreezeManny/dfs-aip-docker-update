@@ -247,7 +247,7 @@ def pdf_summary(args):
             else:
                 fileeven = toc.fetchpage(pageeven, refresh = args.refresh)
                 pdfeven = pikepdf.Pdf.open(fileeven)
-                boxeven = pdfeven.pages[0].mediabox
+                boxeven = pdfeven.pages[0]['/MediaBox']
 
             if pageodd is not None:
                 pagename = pageodd["name"]

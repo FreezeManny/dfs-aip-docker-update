@@ -129,7 +129,7 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
                 # Convert the generated PDF to make it OCR searchable
                 echo "[$PROFILE_NAME] Generating OCR PDF"
                 OCR_OUTPUT_FILE="/app/output/${PROFILE_NAME}-${CURRENT_AIRAC_DATE}_ocr.pdf"
-                if ! ocrmypdf "$OUTPUT_FILE" "$OCR_OUTPUT_FILE" 2>> "$RUN_LOG_FILE"; then
+                if ! ocrmypdf "$OUTPUT_FILE" "$OCR_OUTPUT_FILE" 2>&1 | tee -a "$RUN_LOG_FILE"; then
                     echo "[$PROFILE_NAME] Error during OCR conversion. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
                     failed "$PROFILE_NAME" "$LAST_AIRAC_FILE"
                     continue

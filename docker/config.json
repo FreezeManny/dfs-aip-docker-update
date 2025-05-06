@@ -3,13 +3,13 @@
         {
             "name": "GEN",
             "flight_rule": "vfr",
-            "filters": ["GEN 3", "GEN 2", "GEN 1"],
+            "filters": ["GEN"],
             "additional_params": ""
         },
         {
-            "name": "AD",
+            "name": "Airport Charts",
             "flight_rule": "vfr",
-            "filters": ["AD 2"],
+            "filters": ["AD"],
             "additional_params": ""
         }
     ]
