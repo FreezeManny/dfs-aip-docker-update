@@ -1,15 +1,17 @@
 {
     "profiles": [
         {
-            "name": "GEN",
-            "flight_rule": "vfr",
-            "filters": ["GEN"],
-            "additional_params": ""
-        },
-        {
             "name": "Airport Charts",
             "flight_rule": "vfr",
             "filters": ["AD"],
+            "additional_params": ""
+        }
+    ],
+    "unused": [
+        {
+            "name": "GEN",
+            "flight_rule": "vfr",
+            "filters": ["GEN"],
             "additional_params": ""
         }
     ]
