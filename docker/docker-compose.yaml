@@ -15,6 +15,7 @@ services:
       - CRON_SCHEDULE=0 0 * * *
 
     restart: unless-stopped
+    network_mode: host
 
 #volumes:
 #  dfs-aip-cache:

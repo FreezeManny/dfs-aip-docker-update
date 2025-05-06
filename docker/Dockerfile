@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cron \
     jq \
+    ocrmypdf \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

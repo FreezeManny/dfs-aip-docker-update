@@ -103,18 +103,18 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
             echo "[$PROFILE_NAME] Downloading sections: $AIP_SECTIONS"
             
             # Generate change log if we have a previous AIRAC to compare with
-            if [ -n "$LAST_AIRAC_DATE" ]; then
-                echo "[$PROFILE_NAME] Downloading and Generating PDF summary"
-                OUTPUT_FILE="/app/output/${PROFILE_NAME}_${CURRENT_AIRAC_DATE}.pdf"
-                # Use eval to properly expand the filter arguments
-                if ! eval "python3 ./aip.py pdf --output \"$OUTPUT_FILE\" summary --$FLIGHT_RULE -f $FILTER_ARGS 2>> \"$RUN_LOG_FILE\""; then
-                    echo "[$PROFILE_NAME] Error during PDF generation. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
-                    failed "$PROFILE_NAME" "$LAST_AIRAC_FILE"
-                    continue
-                else
-                    echo "[$PROFILE_NAME] PDF generated at $OUTPUT_FILE"
-                fi
-            fi
+            #if [ -n "$LAST_AIRAC_DATE" ]; then
+            #    echo "[$PROFILE_NAME] Downloading and Generating PDF summary"
+            #    OUTPUT_FILE="/app/output/${PROFILE_NAME}_${CURRENT_AIRAC_DATE}.pdf"
+            #    # Use eval to properly expand the filter arguments
+            #    if ! eval "python3 ./aip.py pdf --output \"$OUTPUT_FILE\" summary --$FLIGHT_RULE -f $FILTER_ARGS 2>> \"$RUN_LOG_FILE\""; then
+            #        echo "[$PROFILE_NAME] Error during PDF generation. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
+            #        failed "$PROFILE_NAME" "$LAST_AIRAC_FILE"
+            #        continue
+            #    else
+            #        echo "[$PROFILE_NAME] PDF generated at $OUTPUT_FILE"
+            #    fi
+            #fi
             
             # Generate PDF summary with proper output path
             echo "[$PROFILE_NAME] Downloading and Generating PDF summary"
@@ -126,6 +126,16 @@ for ((i=0; i<$PROFILE_COUNT; i++)); do
                 continue
             else
                 echo "[$PROFILE_NAME] PDF generated at $OUTPUT_FILE"
+                # Convert the generated PDF to make it OCR searchable
+                echo "[$PROFILE_NAME] Generating OCR PDF"
+                OCR_OUTPUT_FILE="/app/output/${PROFILE_NAME}-${CURRENT_AIRAC_DATE}_ocr.pdf"
+                if ! ocrmypdf "$OUTPUT_FILE" "$OCR_OUTPUT_FILE" 2>> "$RUN_LOG_FILE"; then
+                    echo "[$PROFILE_NAME] Error during OCR conversion. Check $RUN_LOG_FILE for details." | tee -a "$RUN_LOG_FILE"
+                    failed "$PROFILE_NAME" "$LAST_AIRAC_FILE"
+                    continue
+                else
+                    echo "[$PROFILE_NAME] OCR conversion completed. Output at $OCR_OUTPUT_FILE"
+                fi
             fi
         else
             echo "[$PROFILE_NAME] No AIP_SECTIONS specified. Skipping page fetch and PDF generation."

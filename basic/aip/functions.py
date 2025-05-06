@@ -239,7 +239,7 @@ def pdf_summary(args):
             else:
                 fileodd = toc.fetchpage(pageodd, refresh = args.refresh)
                 pdfodd = pikepdf.Pdf.open(fileodd)
-                boxodd = pdfodd.pages[0].trimbox
+                boxodd = pdfodd.pages[0]['/MediaBox']
 
             if pageeven is None:
                 pdfeven = None
