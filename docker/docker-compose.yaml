@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     volumes:
-      - /home/manuel/dfs/cache:/root/.cache/
+      - cache:/root/.cache/
       - /home/manuel/dfs/output:/app/output
       - /home/manuel/dfs/config.json:/app/config.json
     environment:
