@@ -1,5 +1,6 @@
 services:
   dfs-aip:
+    container_name: dfs-aip-auto-downloader
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -8,10 +9,9 @@ services:
       - ./output:/app/output
       - ./config.json:/app/config.json
 
-      - ../docker/scripts/:/app/scripts/
     environment:
       # Set to "true" to run update when container starts
-      - AUTO_UPDATE_ON_START=false
+      - AUTO_UPDATE_ON_START=true
 
       # Optional: Custom cron schedule (default: daily at midnight)
       - CRON_SCHEDULE=0 0 * * *

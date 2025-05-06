@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# filepath: /mnt/c/Users/manue/Documents/personalDocuments/Code/Python/dfs-aip-docker-update/docker/scripts/update_aip.py
 import os
 import json
 import hashlib
