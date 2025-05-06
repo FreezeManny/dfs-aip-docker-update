@@ -5,8 +5,8 @@ services:
       dockerfile: docker/Dockerfile
     volumes:
       - ./cache:/root/.cache/
-      - /home/manuel/dfs/output:/app/output
-      - /home/manuel/dfs/config.json:/app/config.json
+      - ./output:/app/output
+      - ./config.json:/app/config.json
     environment:
       # Set to "true" to run update when container starts
       - AUTO_UPDATE_ON_START=true
