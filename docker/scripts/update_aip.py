@@ -67,7 +67,6 @@ def main():
     
     config_changed = current_config_hash != previous_config_hash
     if config_changed:
-        log("Configuration has changed since last run. Will force updates.")
         log("Configuration changed. Forcing updates.", run_log_file)
 
     # Check if aip.py has correct shebang and fix if needed
@@ -89,7 +88,6 @@ def main():
         config = json.load(f)
     
     profile_count = len(config["profiles"])
-    log(f"Found {profile_count} profiles in config file")
     log(f"Found {profile_count} profiles in config file", run_log_file)
 
     # Process each profile
@@ -99,8 +97,7 @@ def main():
         flight_rule = profile_data["flight_rule"].lower()
         aip_sections = profile_data["filters"]
         
-        log(f"=== Processing profile: {profile_name} ===")
-        log(f"Processing profile: {profile_name}", run_log_file)
+        log(f"=== Processing profile: {profile_name} ===", run_log_file)
         
         # Create a file to store the last processed AIRAC date for this profile
         last_airac_file = f"/root/.cache/last_airac_date_{profile_name}.txt"
@@ -120,24 +117,21 @@ def main():
         current_airac_date = run_command(f"python3 {aip_path} toc list --{flight_rule} | head -n 1 | awk '{{print $2}}'", 
                                         run_log_file, capture_output=True)
         
-        log(f"[{profile_name}] Current AIRAC date: {current_airac_date}")
-        log(f"[{profile_name}] Previous AIRAC date: {last_airac_date}")
+        log(f"[{profile_name}] Current AIRAC date: {current_airac_date}, Previous AIRAC date: {last_airac_date}", run_log_file)
         
         # Check if there's a new AIRAC cycle or configuration changed
         if current_airac_date != last_airac_date or config_changed:
             # Different log message based on what triggered the update
             if config_changed and current_airac_date == last_airac_date:
-                log(f"[{profile_name}] Configuration changed. Forcing update...")
                 log(f"[{profile_name}] Configuration changed. Forcing update...", run_log_file)
             else:
-                log(f"[{profile_name}] New AIRAC cycle detected ({current_airac_date}). Updating...")
                 log(f"[{profile_name}] New AIRAC cycle detected ({current_airac_date}). Updating...", run_log_file)
             
             if aip_sections:
-                log(f"[{profile_name}] Downloading sections: {' '.join(aip_sections)}")
+                log(f"[{profile_name}] Downloading sections: {' '.join(aip_sections)}", run_log_file)
                 
                 # Generate PDF summary with proper output path
-                log(f"[{profile_name}] Downloading and Generating PDF summary")
+                log(f"[{profile_name}] Downloading and Generating PDF summary", run_log_file)
                 output_file = os.path.join(root_directory, f"output/{profile_name}-{current_airac_date}.pdf")
                 
                 # Prepare the filter arguments
@@ -165,14 +159,11 @@ def main():
             # Update the last processed AIRAC date
             with open(last_airac_file, "w") as f:
                 f.write(current_airac_date)
-            log(f"[{profile_name}] Updated last processed AIRAC date to {current_airac_date}")
             log(f"[{profile_name}] Updated AIRAC from {last_airac_date} to {current_airac_date}", run_log_file)
         else:
-            log(f"[{profile_name}] No new AIRAC cycle detected and no configuration changes. Current cycle ({current_airac_date}) already processed.")
             log(f"[{profile_name}] No new AIRAC cycle detected and no configuration changes. Current cycle ({current_airac_date}) already processed.", run_log_file)
         
-        log(f"=== Completed profile: {profile_name} ===")
-        log(f"Completed profile: {profile_name}", run_log_file)
+        log(f"=== Completed profile: {profile_name} ===", run_log_file)
         log("")
 
     # Save the current config hash after successful processing
