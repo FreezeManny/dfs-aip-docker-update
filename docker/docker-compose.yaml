@@ -8,7 +8,7 @@ services:
       - ./output:/app/output
       - ./config.json:/app/config.json
 
-      - ./:/app/
+      - ../docker/scripts/:/app/scripts/
     environment:
       # Set to "true" to run update when container starts
       - AUTO_UPDATE_ON_START=false

@@ -16,28 +16,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy application code
-COPY basic/ /app/
+COPY basic/ /app/basic-aip
 
 # Copy scripts
 #COPY docker/scripts/update_aip.sh /app/update_aip.sh
-#COPY docker/scripts/entrypoint.sh /entrypoint.sh
+COPY docker/scripts/entrypoint.sh /entrypoint.sh
 
 # Make scripts executable
 #RUN chmod +x /app/update_aip.sh /entrypoint.sh
 
 # Install requirements
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r ./basic-aip/requirements.txt
 
 # Create cache directory
 RUN mkdir -p /app/.cache/dfs-aip
 
 # Create output directory
-RUN mkdir -p /app/output
+#RUN mkdir -p /app/docker/output
 
 # Setup cron job
-RUN echo "${CRON_SCHEDULE:-0 0 * * *} /app/update_aip.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/aip-update && \
-    chmod 0644 /etc/cron.d/aip-update && \
-    crontab /etc/cron.d/aip-update
+#RUN echo "${CRON_SCHEDULE:-0 0 * * *} /app/update_aip.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/aip-update && \
+#    chmod 0644 /etc/cron.d/aip-update && \
+#    crontab /etc/cron.d/aip-update
 
 # Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

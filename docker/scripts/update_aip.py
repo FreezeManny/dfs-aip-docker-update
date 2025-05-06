@@ -8,6 +8,8 @@ import datetime
 import re
 import sys
 
+root_directory = "/app/"  # Keep this definition as is
+
 def log(message, log_file=None):
     """Log message to console and optionally to a file"""
     timestamp = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
@@ -41,11 +43,11 @@ def failed(profile, last_airac_file, run_log_file):
 def main():
     # Start the AIP update process
     log("Starting AIP update process")
-    os.chdir("/app")
+    os.chdir(root_directory.rstrip("/"))
 
     # Read config.json
-    config_file = "/app/config.json"
-    run_log_file = "/app/output/aip-run-log.txt"
+    config_file = os.path.join(root_directory, "config.json")
+    run_log_file = os.path.join(root_directory, "output/aip-run-log.txt")
     log("Script execution started", run_log_file)
 
     # Create a hash of the config file to detect changes
@@ -135,7 +137,7 @@ def main():
                 
                 # Generate PDF summary with proper output path
                 log(f"[{profile_name}] Downloading and Generating PDF summary")
-                output_file = f"/app/output/{profile_name}-{current_airac_date}.pdf"
+                output_file = os.path.join(root_directory, f"output/{profile_name}-{current_airac_date}.pdf")
                 
                 # Prepare the filter arguments
                 filter_args = " ".join([f'"{f}"' for f in aip_sections])
@@ -149,7 +151,7 @@ def main():
                     log(f"[{profile_name}] PDF generated at {output_file}")
                     # Convert the generated PDF to make it OCR searchable
                     log(f"[{profile_name}] Generating OCR PDF")
-                    ocr_output_file = f"/app/output/{profile_name}-{current_airac_date}_ocr.pdf"
+                    ocr_output_file = os.path.join(root_directory, f"output/{profile_name}-{current_airac_date}_ocr.pdf")
                     if not run_command(f'ocrmypdf "{output_file}" "{ocr_output_file}"', run_log_file):
                         log(f"[{profile_name}] Error during OCR conversion. Check {run_log_file} for details.", run_log_file)
                         failed(profile_name, last_airac_file, run_log_file)
