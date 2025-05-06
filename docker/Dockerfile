@@ -19,11 +19,11 @@ WORKDIR /app
 COPY basic/ /app/
 
 # Copy scripts
-COPY docker/scripts/update_aip.sh /app/update_aip.sh
-COPY docker/scripts/entrypoint.sh /entrypoint.sh
+#COPY docker/scripts/update_aip.sh /app/update_aip.sh
+#COPY docker/scripts/entrypoint.sh /entrypoint.sh
 
 # Make scripts executable
-RUN chmod +x /app/update_aip.sh /entrypoint.sh
+#RUN chmod +x /app/update_aip.sh /entrypoint.sh
 
 # Install requirements
 RUN pip3 install --no-cache-dir -r requirements.txt

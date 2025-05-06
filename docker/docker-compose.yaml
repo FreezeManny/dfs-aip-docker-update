@@ -7,9 +7,11 @@ services:
       - ./cache:/root/.cache/
       - ./output:/app/output
       - ./config.json:/app/config.json
+
+      - ./:/app/
     environment:
       # Set to "true" to run update when container starts
-      - AUTO_UPDATE_ON_START=true
+      - AUTO_UPDATE_ON_START=false
 
       # Optional: Custom cron schedule (default: daily at midnight)
       - CRON_SCHEDULE=0 0 * * *
