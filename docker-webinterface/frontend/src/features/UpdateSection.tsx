@@ -135,7 +135,7 @@ export function UpdateSection({ onUpdate }: UpdateSectionProps) {
                   {/* Expandable logs */}
                   {isExpanded && (
                     <div className="mt-2 p-3 border rounded-lg bg-background text-xs space-y-1 max-h-48 overflow-y-auto font-mono">
-                      {profile.messages.map((msg, i) => (
+                      {[...profile.messages].reverse().map((msg, i) => (
                         <div
                           key={i}
                           className={`${
