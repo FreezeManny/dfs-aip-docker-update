@@ -10,11 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, RefreshCw, Trash2, FileText } from "lucide-react";
+import { Download, RefreshCw, Trash2, FileText, Loader } from "lucide-react";
 
 interface DocumentsSectionProps {
   documents: Document[];
   onDocumentsChange: () => void;
+  onUpdate: () => void;
+  isUpdating: boolean;
 }
 
 function formatBytes(bytes: number): string {
@@ -31,7 +33,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSectionProps) {
+export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpdating }: DocumentsSectionProps) {
   const handleDeleteDocument = async (profile: string, filename: string) => {
     if (!confirm(`Delete ${filename}?`)) return;
     await api.deleteDocument(profile, filename);
@@ -42,9 +44,21 @@ export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSect
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Documents</CardTitle>
-        <Button size="sm" variant="outline" onClick={onDocumentsChange}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={onDocumentsChange} disabled={isUpdating}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          </Button>
+          <Button size="sm" onClick={onUpdate} disabled={isUpdating} className="bg-blue-600 hover:bg-blue-700">
+            {isUpdating ? (
+              <>
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              "Force Fetch Charts"
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {documents.length === 0 ? (

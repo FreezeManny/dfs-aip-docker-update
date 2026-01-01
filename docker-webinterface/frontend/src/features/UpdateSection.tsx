@@ -1,12 +1,5 @@
-import { useRef, useState } from "react";
-import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Loader, ChevronDown } from "lucide-react";
-
-interface UpdateSectionProps {
-  onUpdate: () => void;
-}
 
 interface ProfileStatus {
   name: string;
@@ -24,89 +17,32 @@ const STAGE_LABELS: Record<string, string> = {
   complete: "Complete",
 };
 
-export function UpdateSection({ onUpdate }: UpdateSectionProps) {
-  const [isRunning, setIsRunning] = useState(false);
-  const [profilesStatus, setProfilesStatus] = useState<Record<string, ProfileStatus>>({});
-  const [expandedProfile, setExpandedProfile] = useState<string | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+interface UpdateSectionProps {
+  profilesStatus: Record<string, ProfileStatus>;
+  expandedProfile: string | null;
+  onExpandProfile: (profile: string | null) => void;
+}
 
-  const handleClick = async () => {
-    setIsRunning(true);
-    setProfilesStatus({});
-    setExpandedProfile(null);
-    
-    // Start streaming progress
-    unsubscribeRef.current = api.streamUpdateProgress((progress) => {
-      if (progress.profile === "") {
-        // System message
-        if (progress.stage === "system" && progress.message.includes("finished")) {
-          setIsRunning(false);
-          setTimeout(() => {
-            onUpdate();
-            if (unsubscribeRef.current) {
-              unsubscribeRef.current();
-              unsubscribeRef.current = null;
-            }
-          }, 500);
-        }
-      } else {
-        // Profile progress
-        setProfilesStatus((prev) => {
-          const profileName = progress.profile;
-          const existing = prev[profileName] || { 
-            name: profileName, 
-            stage: "", 
-            status: "pending", 
-            lastMessage: "",
-            messages: [] 
-          };
-          
-          return {
-            ...prev,
-            [profileName]: {
-              ...existing,
-              stage: progress.stage,
-              status: progress.status === "error" ? "error" : progress.status === "success" ? "success" : "running",
-              lastMessage: progress.message,
-              messages: [...existing.messages, { stage: progress.stage, message: progress.message, status: progress.status }],
-            },
-          };
-        });
-      }
-    });
-
-    // Trigger update
-    await api.triggerUpdate();
-  };
+export function UpdateSection({ profilesStatus, expandedProfile, onExpandProfile }: UpdateSectionProps) {
+  const profiles = Object.values(profilesStatus);
 
   return (
-    <>
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex gap-2">
-            <Button onClick={handleClick} disabled={isRunning} size="lg" className="flex-1 py-6 text-lg">
-            {isRunning ? (
-              <>
-                <Loader className="mr-3 h-6 w-6 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              <>
-               Force Fetch Charts 
-              </>
-            )}
-          </Button>
-        </div>
-
+    <Card>
+      <CardContent className="pt-6 space-y-4">
         {/* Progress for each profile */}
-        {Object.entries(profilesStatus).length > 0 && (
-          <div className="space-y-2">
-            {Object.values(profilesStatus).map((profile) => {
+        <div className="space-y-2">
+          {profiles.length === 0 ? (
+            <div className="flex items-center justify-center p-6 border rounded-lg bg-muted/30">
+              <Loader className="h-5 w-5 animate-spin text-blue-500 mr-2" />
+              <p className="text-sm text-muted-foreground">Initializing update...</p>
+            </div>
+          ) : (
+            profiles.map((profile) => {
               const isExpanded = expandedProfile === profile.name;
               return (
                 <div key={profile.name}>
                   <button
-                    onClick={() => setExpandedProfile(isExpanded ? null : profile.name)}
+                    onClick={() => onExpandProfile(isExpanded ? null : profile.name)}
                     className="w-full flex items-center justify-between p-3 border rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left"
                   >
                     <div className="flex items-center gap-3 flex-1">
@@ -155,11 +91,10 @@ export function UpdateSection({ onUpdate }: UpdateSectionProps) {
                   )}
                 </div>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </CardContent>
     </Card>
-    </>
   );
 }

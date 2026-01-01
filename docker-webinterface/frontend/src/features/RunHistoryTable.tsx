@@ -24,14 +24,18 @@ import {
 } from "@/components/ui/table";
 import { CheckCircle, AlertCircle } from "lucide-react";
 
-export function RunHistoryTable() {
+interface RunHistoryTableProps {
+  refreshTrigger?: number;
+}
+
+export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedRunDetail, setSelectedRunDetail] = useState<RunDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadRuns();
-  }, []);
+  }, [refreshTrigger]);
 
   const loadRuns = async () => {
     setIsLoading(true);
