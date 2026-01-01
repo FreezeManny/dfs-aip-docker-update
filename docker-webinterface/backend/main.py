@@ -7,10 +7,11 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from collections import deque
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -33,6 +34,20 @@ app = FastAPI(title="DFS AIP Updater", version="3.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _update_running = False
+_progress_queue: deque = deque(maxlen=1000)  # Keep last 1000 messages
+
+
+def _log_progress(profile: str, stage: str, message: str = "", status: str = "info"):
+    """Log progress message with profile context"""
+    msg = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "profile": profile,
+        "stage": stage,
+        "message": message,
+        "status": status,  # "info", "warning", "error", "success"
+    }
+    _progress_queue.append(json.dumps(msg))
+    logger.info(f"[{profile}] {stage}: {message}")
 
 
 # ============== Models ==============
@@ -102,27 +117,50 @@ def delete_profile(name: str):
 
 # ============== Update ==============
 
+@app.get("/api/update/progress")
+async def get_update_progress():
+    """Server-Sent Events endpoint for real-time progress"""
+    async def event_generator():
+        # Send all existing messages
+        for msg in _progress_queue:
+            yield f"data: {msg}\n\n"
+        
+        # Keep connection open and send new messages as they arrive
+        last_index = len(_progress_queue)
+        while _update_running or last_index < len(_progress_queue):
+            if last_index < len(_progress_queue):
+                msg = _progress_queue[last_index]
+                yield f"data: {msg}\n\n"
+                last_index += 1
+            else:
+                await asyncio.sleep(0.1)
+    
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 async def run_update(profile_name: str | None = None):
     global _update_running
     _update_running = True
-    logger.info(f"Starting update{f' for profile: {profile_name}' if profile_name else ' for all profiles'}")
+    _progress_queue.clear()
+    _log_progress("", "system", "Starting update process", "info")
 
     try:
         profiles = [p for p in _load_profiles() if p.get("enabled", True)]
         if profile_name:
             profiles = [p for p in profiles if p["name"] == profile_name]
 
-        logger.info(f"Found {len(profiles)} profile(s) to process")
+        _log_progress("", "system", f"Found {len(profiles)} profile(s) to process", "info")
 
         for profile in profiles:
+            profile_name_str = profile['name']
             try:
-                logger.info(f"Processing profile: {profile['name']}")
+                _log_progress(profile_name_str, "init", "Starting profile processing", "info")
                 profile_dir = OUTPUT_DIR / _sanitize(profile["name"])
                 profile_dir.mkdir(parents=True, exist_ok=True)
                 cache_path = str(CACHE_DIR / "dfs-aip")
 
                 # Fetch TOC
-                logger.info(f"  Fetching TOC ({profile['flight_rule'].upper()})...")
+                _log_progress(profile_name_str, "toc_fetch", f"Fetching TOC ({profile['flight_rule'].upper()})", "info")
                 proc = await asyncio.create_subprocess_exec(
                     "python3", "/app/aip.py", "--cache", cache_path,
                     "toc", "fetch", f"--{profile['flight_rule']}",
@@ -130,9 +168,9 @@ async def run_update(profile_name: str | None = None):
                 )
                 stdout, stderr = await proc.communicate()
                 if proc.returncode != 0:
-                    logger.error(f"  TOC fetch failed: {stderr.decode()}")
+                    _log_progress(profile_name_str, "toc_fetch", f"Failed: {stderr.decode()[:200]}", "error")
                     continue
-                logger.info(f"  TOC fetch output: {stdout.decode()[:200]}")
+                _log_progress(profile_name_str, "toc_fetch", "TOC fetched successfully", "success")
 
                 # Get AIRAC date
                 proc = await asyncio.create_subprocess_exec(
@@ -141,27 +179,24 @@ async def run_update(profile_name: str | None = None):
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
                 stdout, stderr = await proc.communicate()
-                logger.info(f"  TOC list output: '{stdout.decode().strip()}'")
-                if stderr:
-                    logger.error(f"  TOC list stderr: {stderr.decode()}")
 
                 lines = stdout.decode().strip().split('\n')
                 if not lines or not lines[0].strip():
-                    logger.warning(f"  No AIRAC cycles found for {profile['name']}")
+                    _log_progress(profile_name_str, "init", "No AIRAC cycles found", "warning")
                     continue
 
                 airac_date = lines[0].split()[1]
-                profile_name = _sanitize(profile['name'])
-                output_path = profile_dir / f"{profile_name}_{airac_date}.pdf"
-                ocr_output_path = profile_dir / f"{profile_name}_{airac_date}_ocr.pdf"
-                logger.info(f"  AIRAC date: {airac_date}")
+                profile_sanitized = _sanitize(profile['name'])
+                output_path = profile_dir / f"{profile_sanitized}_{airac_date}.pdf"
+                ocr_output_path = profile_dir / f"{profile_sanitized}_{airac_date}_ocr.pdf"
+                _log_progress(profile_name_str, "init", f"AIRAC date: {airac_date}", "info")
                 
                 # Check if we need to generate PDF
                 if output_path.exists():
-                    logger.info(f"  PDF already exists")
+                    _log_progress(profile_name_str, "pdf_gen", "PDF already exists", "info")
                 else:
                     # Generate PDF
-                    logger.info(f"  Generating PDF: {output_path.name}...")
+                    _log_progress(profile_name_str, "pdf_gen", "Generating PDF", "info")
                     filter_args = [arg for f in profile.get("filters", []) for arg in ["-f", f]]
                     proc = await asyncio.create_subprocess_exec(
                         "python3", "-u", "/app/aip.py", "--cache", cache_path,
@@ -179,41 +214,42 @@ async def run_update(profile_name: str | None = None):
                         page_name = line.decode().strip()
                         if page_name:
                             page_count += 1
-                            logger.info(f"    [{page_count}] {page_name}")
+                            _log_progress(profile_name_str, "pdf_gen", f"Downloaded page {page_count}: {page_name}", "info")
                     
                     await proc.wait()
                     stderr = await proc.stderr.read()
 
                     if proc.returncode == 0:
                         size_mb = output_path.stat().st_size / (1024 * 1024)
-                        logger.info(f"  PDF Done! ({size_mb:.1f} MB)")
+                        _log_progress(profile_name_str, "pdf_gen", f"PDF complete ({size_mb:.1f} MB)", "success")
                     else:
-                        logger.error(f"  PDF generation failed: {stderr.decode()}")
+                        _log_progress(profile_name_str, "pdf_gen", f"Failed: {stderr.decode()[:200]}", "error")
                         continue
 
                 # Check if we need to generate OCR version
-                if ocr_output_path.exists():
-                    logger.info(f"  OCR PDF already exists, skipping")
-                    continue
-                    
-                # Generate OCR version
-                logger.info(f"  Generating OCR PDF: {ocr_output_path.name}...")
-                proc = await asyncio.create_subprocess_exec(
-                    "ocrmypdf", str(output_path), str(ocr_output_path),
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-                )
-                stdout, stderr = await proc.communicate()
-                if proc.returncode == 0:
-                    ocr_size_mb = ocr_output_path.stat().st_size / (1024 * 1024)
-                    logger.info(f"  OCR Done! ({ocr_size_mb:.1f} MB)")
+                if not ocr_output_path.exists():
+                    # Generate OCR version
+                    _log_progress(profile_name_str, "ocr", "Generating searchable OCR PDF", "info")
+                    proc = await asyncio.create_subprocess_exec(
+                        "ocrmypdf", str(output_path), str(ocr_output_path),
+                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await proc.communicate()
+                    if proc.returncode == 0:
+                        ocr_size_mb = ocr_output_path.stat().st_size / (1024 * 1024)
+                        _log_progress(profile_name_str, "ocr", f"OCR complete ({ocr_size_mb:.1f} MB)", "success")
+                    else:
+                        _log_progress(profile_name_str, "ocr", f"Failed: {stderr.decode()[:200]}", "error")
                 else:
-                    logger.error(f"  OCR failed: {stderr.decode()}")
+                    _log_progress(profile_name_str, "ocr", "OCR PDF already exists", "success")
+                
+                _log_progress(profile_name_str, "complete", "Profile processing complete", "success")
 
             except Exception as e:
-                logger.error(f"  Error processing {profile['name']}: {e}")
+                _log_progress(profile_name_str, "error", f"Exception: {str(e)[:200]}", "error")
     finally:
         _update_running = False
-        logger.info("Update finished")
+        _log_progress("", "system", "Update process finished", "info")
 
 
 @app.post("/api/update/run")

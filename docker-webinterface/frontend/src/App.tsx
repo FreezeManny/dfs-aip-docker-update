@@ -40,8 +40,8 @@ function AppContent() {
         </header>
 
         <ProfilesSection profiles={profiles} onProfilesChange={loadProfiles} />
-        <UpdateSection onUpdate={loadDocuments} />
         <DocumentsSection documents={documents} onDocumentsChange={loadDocuments} />
+        <UpdateSection onUpdate={loadDocuments} />
       </div>
     </div>
   );

@@ -17,6 +17,14 @@ export interface Document {
   is_ocr: boolean;
 }
 
+export interface UpdateProgress {
+  timestamp: string;
+  profile: string;
+  stage: string;
+  message: string;
+  status: "info" | "warning" | "error" | "success";
+}
+
 export const api = {
   // Profiles
   async getProfiles(): Promise<Profile[]> {
@@ -64,9 +72,28 @@ export const api = {
     return `${API_BASE}/documents/${path}`;
   },
 
-  // Update
+  // Update with progress streaming
   async triggerUpdate(profile?: string): Promise<void> {
     const url = profile ? `${API_BASE}/update/run?profile=${encodeURIComponent(profile)}` : `${API_BASE}/update/run`;
     await fetch(url, { method: "POST" });
+  },
+
+  streamUpdateProgress(onProgress: (progress: UpdateProgress) => void): () => void {
+    const eventSource = new EventSource(`${API_BASE}/update/progress`);
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const progress = JSON.parse(event.data) as UpdateProgress;
+        onProgress(progress);
+      } catch (e) {
+        console.error("Failed to parse progress message:", e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => eventSource.close();
   },
 };
