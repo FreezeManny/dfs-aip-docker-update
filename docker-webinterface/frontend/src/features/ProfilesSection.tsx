@@ -73,9 +73,6 @@ export function ProfilesSection({ profiles, onProfilesChange }: ProfilesSectionP
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Profiles</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={onProfilesChange}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm">

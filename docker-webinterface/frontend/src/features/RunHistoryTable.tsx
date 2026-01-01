@@ -192,19 +192,19 @@ export function RunHistoryTable() {
 
       {selectedRunDetail && (
         <Dialog open={!!selectedRunDetail} onOpenChange={() => setSelectedRunDetail(null)}>
-          <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Run Logs - {new Date(selectedRunDetail.timestamp).toLocaleString()}</DialogTitle>
+          <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+            <DialogHeader className="shrink-0">
+              <DialogTitle className="text-lg">Run Logs - {new Date(selectedRunDetail.timestamp).toLocaleString()}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-3">
+            <div className="overflow-y-auto flex-1 space-y-3 pr-4">
               {Object.entries(selectedRunDetail.logs).map(([profileName, messages]) => (
-                <Card key={profileName}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{profileName}</CardTitle>
+                <Card key={profileName} className="border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">{profileName}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-xs space-y-1 max-h-32 overflow-y-auto font-mono">
+                    <div className="text-sm space-y-1.5 font-mono bg-muted/50 p-3 rounded max-h-80 overflow-y-auto">
                       {[...messages].reverse().map((msg, i) => (
                         <div
                           key={i}
