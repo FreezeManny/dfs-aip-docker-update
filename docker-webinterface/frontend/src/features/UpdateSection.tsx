@@ -80,21 +80,24 @@ export function UpdateSection({ onUpdate }: UpdateSectionProps) {
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6 space-y-4">
-        <Button onClick={handleClick} disabled={isRunning} size="lg" className="w-full py-6 text-lg">
-          {isRunning ? (
-            <>
-              <Loader className="mr-3 h-6 w-6 animate-spin" />
-              Updating...
-            </>
-          ) : (
-            <>
-              <Plane className="mr-3 h-6 w-6" />
-              Force Trigger Update
-            </>
-          )}
-        </Button>
+    <>
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex gap-2">
+            <Button onClick={handleClick} disabled={isRunning} size="lg" className="flex-1 py-6 text-lg">
+            {isRunning ? (
+              <>
+                <Loader className="mr-3 h-6 w-6 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Plane className="mr-3 h-6 w-6" />
+                Download Latest AIP Charts
+              </>
+            )}
+          </Button>
+        </div>
 
         {/* Progress for each profile */}
         {Object.entries(profilesStatus).length > 0 && (
@@ -158,5 +161,6 @@ export function UpdateSection({ onUpdate }: UpdateSectionProps) {
         )}
       </CardContent>
     </Card>
+    </>
   );
 }

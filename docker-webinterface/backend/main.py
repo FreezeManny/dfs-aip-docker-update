@@ -23,10 +23,12 @@ OUTPUT_DIR = Path("/app/output")
 CACHE_DIR = Path("/app/cache")
 DATA_DIR = Path("/app/data")
 PROFILES_FILE = DATA_DIR / "profiles.json"
+RUNS_DIR = DATA_DIR / "runs"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============== App ==============
 
@@ -35,6 +37,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 _update_running = False
 _progress_queue: deque = deque(maxlen=1000)  # Keep last 1000 messages
+_current_run_id = None
+_current_run_logs: dict[str, list] = {}  # profile_name -> list of logs
 
 
 def _log_progress(profile: str, stage: str, message: str = "", status: str = "info"):
@@ -47,6 +51,13 @@ def _log_progress(profile: str, stage: str, message: str = "", status: str = "in
         "status": status,  # "info", "warning", "error", "success"
     }
     _progress_queue.append(json.dumps(msg))
+    
+    # Store in current run logs
+    if profile and profile != "":
+        if profile not in _current_run_logs:
+            _current_run_logs[profile] = []
+        _current_run_logs[profile].append(msg)
+    
     logger.info(f"[{profile}] {stage}: {message}")
 
 
@@ -250,6 +261,8 @@ async def run_update(profile_name: str | None = None):
     finally:
         _update_running = False
         _log_progress("", "system", "Update process finished", "info")
+        _save_run()
+        _current_run_logs.clear()
 
 
 @app.post("/api/update/run")
@@ -258,6 +271,68 @@ async def trigger_update(background_tasks: BackgroundTasks, profile: str | None 
         raise HTTPException(409, "Update already running")
     background_tasks.add_task(run_update, profile)
     return {"status": "ok"}
+
+
+# ============== Run History ==============
+
+@app.get("/api/runs")
+def list_runs():
+    """List all past runs"""
+    runs = []
+    for run_file in sorted(RUNS_DIR.glob("*.json"), reverse=True):
+        try:
+            data = json.loads(run_file.read_text())
+            logs = data.get("logs", {})
+            
+            # Determine overall status: "success" if all profiles completed without error, else "error"
+            status = "success"
+            for profile_logs in logs.values():
+                if profile_logs and profile_logs[-1].get("status") == "error":
+                    status = "error"
+                    break
+            
+            runs.append({
+                "id": run_file.stem,
+                "timestamp": data.get("timestamp"),
+                "profiles": list(logs.keys()),
+                "status": status,
+            })
+        except Exception as e:
+            logger.error(f"Failed to read run {run_file}: {e}")
+    return {"runs": runs}
+
+
+@app.get("/api/runs/{run_id}")
+def get_run(run_id: str):
+    """Get logs for a specific run"""
+    run_file = RUNS_DIR / f"{run_id}.json"
+    if not run_file.exists():
+        raise HTTPException(404, "Run not found")
+    
+    try:
+        data = json.loads(run_file.read_text())
+        return data
+    except Exception as e:
+        raise HTTPException(500, f"Failed to read run: {str(e)}")
+
+
+def _save_run():
+    """Save current run logs to file"""
+    global _current_run_id
+    
+    run_timestamp = datetime.now(timezone.utc).isoformat()
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    _current_run_id = run_id
+    
+    run_data = {
+        "id": run_id,
+        "timestamp": run_timestamp,
+        "logs": _current_run_logs.copy(),
+    }
+    
+    run_file = RUNS_DIR / f"{run_id}.json"
+    run_file.write_text(json.dumps(run_data, indent=2))
+    logger.info(f"Saved run {run_id}")
 
 
 # ============== Documents ==============

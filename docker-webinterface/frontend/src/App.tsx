@@ -4,6 +4,7 @@ import type { Profile, Document } from "@/lib/api";
 import { ProfilesSection } from "@/features/ProfilesSection";
 import { UpdateSection } from "@/features/UpdateSection";
 import { DocumentsSection } from "@/features/DocumentsSection";
+import { RunHistoryTable } from "@/features/RunHistoryTable";
 import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
@@ -42,6 +43,7 @@ function AppContent() {
         <ProfilesSection profiles={profiles} onProfilesChange={loadProfiles} />
         <DocumentsSection documents={documents} onDocumentsChange={loadDocuments} />
         <UpdateSection onUpdate={loadDocuments} />
+        <RunHistoryTable />
       </div>
     </div>
   );

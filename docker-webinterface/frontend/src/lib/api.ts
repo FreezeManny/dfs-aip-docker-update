@@ -25,6 +25,19 @@ export interface UpdateProgress {
   status: "info" | "warning" | "error" | "success";
 }
 
+export interface RunSummary {
+  id: string;
+  timestamp: string;
+  profiles: string[];
+  status: "success" | "error";
+}
+
+export interface RunDetail {
+  id: string;
+  timestamp: string;
+  logs: Record<string, Array<{ timestamp: string; stage: string; message: string; status: string }>>;
+}
+
 export const api = {
   // Profiles
   async getProfiles(): Promise<Profile[]> {
@@ -70,6 +83,19 @@ export const api = {
 
   getDocumentUrl(path: string): string {
     return `${API_BASE}/documents/${path}`;
+  },
+
+  // Runs
+  async getRuns(): Promise<RunSummary[]> {
+    const res = await fetch(`${API_BASE}/runs`);
+    const data = await res.json();
+    return data.runs;
+  },
+
+  async getRun(runId: string): Promise<RunDetail> {
+    const res = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`);
+    if (!res.ok) throw new Error("Run not found");
+    return res.json();
   },
 
   // Update with progress streaming
