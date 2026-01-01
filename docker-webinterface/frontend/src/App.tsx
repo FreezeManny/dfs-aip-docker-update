@@ -68,6 +68,9 @@ function AppContent() {
             },
           };
         });
+      } else if (progress.stage === "system" && progress.message === "Update process finished") {
+        // Update is complete, reset the updating state
+        setIsUpdating(false);
       }
     });
 
