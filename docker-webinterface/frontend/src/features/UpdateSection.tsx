@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plane, AlertCircle, CheckCircle, Loader, ChevronDown } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader, ChevronDown } from "lucide-react";
 
 interface UpdateSectionProps {
   onUpdate: () => void;
