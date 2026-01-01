@@ -2,15 +2,8 @@ import { api } from "@/lib/api";
 import type { Document } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Download, RefreshCw, Trash2, FileText, Loader } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Download, RefreshCw, Trash2, FileText } from "lucide-react";
 
 interface DocumentsSectionProps {
   documents: Document[];
@@ -45,18 +38,11 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Documents</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={onDocumentsChange} disabled={isUpdating}>
+          <Button size="sm" variant="outline" onClick={onDocumentsChange}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
           <Button size="sm" onClick={onUpdate} disabled={isUpdating} className="bg-blue-600 hover:bg-blue-700">
-            {isUpdating ? (
-              <>
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              "Force Fetch Charts"
-            )}
+            Force Fetch Charts
           </Button>
         </div>
       </CardHeader>
@@ -75,41 +61,52 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documents.filter(d => !d.is_ocr).map((d) => {
-                const ocrDoc = documents.find(doc => doc.profile === d.profile && doc.airac_date === d.airac_date && doc.is_ocr);
-                return (
-                  <TableRow key={d.path}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        {d.profile}
-                      </div>
-                    </TableCell>
-                    <TableCell>{d.airac_date}</TableCell>
-                    <TableCell>{formatBytes(d.size)}</TableCell>
-                    <TableCell>{formatDate(d.modified)}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={api.getDocumentUrl(d.path)} target="_blank" rel="noopener">
-                          <Download className="mr-1 h-4 w-4" /> PDF
-                        </a>
-                      </Button>
-                      <Button size="sm" variant={ocrDoc ? "default" : "secondary"} disabled={!ocrDoc} asChild={!!ocrDoc}>
-                        {ocrDoc ? (
-                          <a href={api.getDocumentUrl(ocrDoc.path)} target="_blank" rel="noopener">
-                            <Download className="mr-1 h-4 w-4" /> OCR
+              {documents
+                .filter((d) => !d.is_ocr)
+                .map((d) => {
+                  const ocrDoc = documents.find(
+                    (doc) => doc.profile === d.profile && doc.airac_date === d.airac_date && doc.is_ocr
+                  );
+                  return (
+                    <TableRow key={d.path}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          {d.profile}
+                        </div>
+                      </TableCell>
+                      <TableCell>{d.airac_date}</TableCell>
+                      <TableCell>{formatBytes(d.size)}</TableCell>
+                      <TableCell>{formatDate(d.modified)}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={api.getDocumentUrl(d.path)} target="_blank" rel="noopener">
+                            <Download className="mr-1 h-4 w-4" /> PDF
                           </a>
-                        ) : (
-                          <span><Download className="mr-1 h-4 w-4" /> OCR</span>
-                        )}
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(d.profile, d.name)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={ocrDoc ? "default" : "secondary"}
+                          disabled={!ocrDoc}
+                          asChild={!!ocrDoc}
+                        >
+                          {ocrDoc ? (
+                            <a href={api.getDocumentUrl(ocrDoc.path)} target="_blank" rel="noopener">
+                              <Download className="mr-1 h-4 w-4" /> OCR
+                            </a>
+                          ) : (
+                            <span>
+                              <Download className="mr-1 h-4 w-4" /> OCR
+                            </span>
+                          )}
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(d.profile, d.name)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         )}
