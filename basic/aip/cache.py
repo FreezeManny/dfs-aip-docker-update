@@ -64,6 +64,7 @@ class AipCache:
             self.basedir = xdg.BaseDirectory.save_cache_path('dfs-aip')
         else:
             self.basedir = basedir
+            os.makedirs(self.basedir, exist_ok=True)
 
 
     #

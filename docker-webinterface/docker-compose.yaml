@@ -1,0 +1,31 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dfs-aip-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - dfs-aip-network
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker-webinterface/backend/Dockerfile
+    container_name: dfs-aip-backend
+    volumes:
+      - ./test/data:/app/data      # Profiles JSON
+      - ./test/output:/app/output  # Generated PDFs
+      - ./test/aip-cache:/app/cache  # Cache
+    restart: unless-stopped
+    networks:
+      - dfs-aip-network
+
+
+networks:
+  dfs-aip-network:
+    driver: bridge
