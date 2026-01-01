@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import type { Profile, Document, UpdateProgress } from "@/lib/api";
-import { ProfilesSection } from "@/features/ProfilesSection";
-import { DocumentsSection } from "@/features/DocumentsSection";
-import { UpdateSection } from "@/features/UpdateSection";
-import { RunHistoryTable } from "@/features/RunHistoryTable";
+import { ProfilesSection } from "@/components/ProfilesSection";
+import { DocumentsSection } from "@/components/DocumentsSection";
+import { UpdateSection } from "@/components/LiveUpdateSection";
+import { RunHistoryTable } from "@/components/RunHistoryTable";
 import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
