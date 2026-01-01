@@ -109,7 +109,7 @@ export function ProfilesSection({ profiles, onProfilesChange }: ProfilesSectionP
                   <Input
                     value={newFilters}
                     onChange={(e) => setNewFilters(e.target.value)}
-                    placeholder="e.g. EDDF, EDDM"
+                    placeholder="e.g. GEN, ENR 3 1-ENR 3 10, AD EDCJ"
                   />
                 </div>
                 <Button onClick={handleCreateProfile} className="w-full">
