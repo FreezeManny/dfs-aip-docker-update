@@ -4,10 +4,14 @@ import type { Profile, Document } from "@/lib/api";
 import { ProfilesSection } from "@/features/ProfilesSection";
 import { UpdateSection } from "@/features/UpdateSection";
 import { DocumentsSection } from "@/features/DocumentsSection";
+import { useTheme } from "@/lib/theme";
+import { Button } from "@/components/ui/button";
+import { Moon, Sun } from "lucide-react";
 
-export default function App() {
+function AppContent() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const { theme, toggleTheme } = useTheme();
 
   const loadProfiles = async () => {
     setProfiles(await api.getProfiles());
@@ -28,8 +32,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto space-y-6">
-        <header>
+        <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">DFS AIP Updater</h1>
+          <Button size="icon" variant="ghost" onClick={toggleTheme}>
+            {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
         </header>
 
         <ProfilesSection profiles={profiles} onProfilesChange={loadProfiles} />
@@ -38,4 +45,8 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+export default function App() {
+  return <AppContent />;
 }
