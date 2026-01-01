@@ -92,8 +92,7 @@ export function UpdateSection({ onUpdate }: UpdateSectionProps) {
               </>
             ) : (
               <>
-                <Plane className="mr-3 h-6 w-6" />
-                Download Latest AIP Charts
+               Force Fetch Charts 
               </>
             )}
           </Button>
