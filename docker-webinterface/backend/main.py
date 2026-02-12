@@ -5,14 +5,18 @@ DFS AIP Updater - Single-file FastAPI Backend
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from collections import deque
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -30,9 +34,50 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Scheduler configuration from environment variables
+AUTO_UPDATE_ENABLED = os.getenv("AUTO_UPDATE_ENABLED", "false").lower() == "true"
+AUTO_UPDATE_HOUR = int(os.getenv("AUTO_UPDATE_HOUR", "2"))  # Default: 2 AM
+AUTO_UPDATE_MINUTE = int(os.getenv("AUTO_UPDATE_MINUTE", "0"))  # Default: 00 minutes
+
+# ============== Scheduler ==============
+
+scheduler = AsyncIOScheduler()
+
+async def scheduled_update():
+    """Run automatic update (called by scheduler)"""
+    global _update_running
+    if _update_running:
+        logger.warning("Scheduled update skipped: update already running")
+        return
+    
+    logger.info("Starting scheduled automatic update")
+    await run_update()
+
 # ============== App ==============
 
-app = FastAPI(title="DFS AIP Updater", version="3.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    if AUTO_UPDATE_ENABLED:
+        logger.info(f"Auto-update enabled: scheduled for {AUTO_UPDATE_HOUR:02d}:{AUTO_UPDATE_MINUTE:02d} daily")
+        scheduler.add_job(
+            scheduled_update,
+            CronTrigger(hour=AUTO_UPDATE_HOUR, minute=AUTO_UPDATE_MINUTE),
+            id="auto_update",
+            name="Automatic AIP Update",
+            replace_existing=True,
+        )
+        scheduler.start()
+    else:
+        logger.info("Auto-update disabled")
+    
+    yield
+    
+    # Shutdown
+    if scheduler.running:
+        scheduler.shutdown()
+
+app = FastAPI(title="DFS AIP Updater", version="3.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _update_running = False
@@ -84,6 +129,32 @@ def _save_profiles(profiles: list[dict]) -> None:
 
 def _sanitize(name: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+
+
+def _validate_path(base_dir: Path, *parts: str) -> Path:
+    """Validate that the requested path is within base_dir and return resolved path.
+    
+    Raises HTTPException if path traversal is detected or path is invalid.
+    """
+    try:
+        # Build the requested path
+        requested_path = base_dir.joinpath(*parts)
+        # Resolve to absolute path (handles .. and symlinks)
+        resolved_path = requested_path.resolve()
+        resolved_base = base_dir.resolve()
+        
+        # Check if resolved path is within base directory
+        if not resolved_path.is_relative_to(resolved_base):
+            raise HTTPException(400, "Invalid path: access denied")
+        
+        # Additional check: ensure no path component is "." or ".."
+        for part in parts:
+            if part in ("", ".", "..") or "/" in part or "\\" in part:
+                raise HTTPException(400, "Invalid path: illegal characters")
+        
+        return resolved_path
+    except (ValueError, OSError) as e:
+        raise HTTPException(400, f"Invalid path: {str(e)}")
 
 
 # ============== Profile Endpoints ==============
@@ -363,17 +434,27 @@ def list_documents():
 
 @app.get("/api/documents/{profile}/{filename}")
 def download_document(profile: str, filename: str):
-    file_path = OUTPUT_DIR / profile / filename
+    # Validate path to prevent directory traversal attacks
+    file_path = _validate_path(OUTPUT_DIR, profile, filename)
+    
     if not file_path.exists():
         raise HTTPException(404, "Document not found")
+    if not file_path.is_file():
+        raise HTTPException(400, "Invalid path: not a file")
+    
     return FileResponse(file_path, media_type="application/pdf", filename=filename)
 
 
 @app.delete("/api/documents/{profile}/{filename}")
 def delete_document(profile: str, filename: str):
-    file_path = OUTPUT_DIR / profile / filename
+    # Validate path to prevent directory traversal attacks
+    file_path = _validate_path(OUTPUT_DIR, profile, filename)
+    
     if not file_path.exists():
         raise HTTPException(404, "Document not found")
+    if not file_path.is_file():
+        raise HTTPException(400, "Invalid path: not a file")
+    
     file_path.unlink()
     return {"status": "ok"}
 

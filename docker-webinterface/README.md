@@ -5,14 +5,15 @@ A simple web-based interface for the DFS AIP (Aeronautical Information Publicati
 ## Features
 
 - **Profile Management**: Create and delete AIP download profiles
+- **Automatic Updates**: Schedule nightly updates at a configurable time
 - **Update Control**: Trigger updates manually for all or individual profiles
-- **History**: View update history with status and file sizes
-- **Document Downloads**: Browse and download generated PDFs
+- **Run History**: View update history with status and detailed logs
+- **Document Downloads**: Browse and download generated PDFs (with OCR)
 
 ## Tech Stack
 
-- **Frontend**: Vue 3 + TypeScript + Vite + Tailwind CSS + Nginx
-- **Backend**: FastAPI + SQLAlchemy (SQLite)
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui + Nginx
+- **Backend**: FastAPI + APScheduler
 - **Container**: Docker with docker-compose
 
 ## Quick Start
@@ -56,31 +57,37 @@ npm run dev
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CONFIG_FILE` | `/app/data/config.json` | Path to the configuration file |
-| `OUTPUT_DIR` | `/app/data/output` | Directory for generated PDFs |
-| `CACHE_DIR` | `/app/data/cache` | Directory for AIP cache |
+| `AUTO_UPDATE_ENABLED` | `false` | Enable automatic nightly updates |
+| `AUTO_UPDATE_HOUR` | `2` | Hour for automatic updates (0-23, 24-hour format) |
+| `AUTO_UPDATE_MINUTE` | `0` | Minute for automatic updates (0-59) |
+
+**Example**: To run updates daily at 3:30 AM, set:
+```yaml
+environment:
+  - AUTO_UPDATE_ENABLED=true
+  - AUTO_UPDATE_HOUR=3
+  - AUTO_UPDATE_MINUTE=30
+```
 
 ### Profile Configuration
 
-Profiles are stored in `config.json`:
+Profiles are stored in `/app/data/profiles.json`:
 
 ```json
-{
-    "profiles": [
-        {
-            "name": "Airport Charts",
-            "flight_rule": "vfr",
-            "filters": ["AD"],
-            "additional_params": ""
-        },
-        {
-            "name": "General Info",
-            "flight_rule": "vfr",
-            "filters": ["GEN"],
-            "additional_params": ""
-        }
-    ]
-}
+[
+  {
+    "name": "Airport Charts",
+    "flight_rule": "vfr",
+    "filters": ["AD"],
+    "enabled": true
+  },
+  {
+    "name": "General Info",
+    "flight_rule": "vfr",
+    "filters": ["GEN"],
+    "enabled": true
+  }
+]
 ```
 
 ### Available Filters
