@@ -38,6 +38,9 @@ RUNS_DIR.mkdir(parents=True, exist_ok=True)
 AUTO_UPDATE_ENABLED = os.getenv("AUTO_UPDATE_ENABLED", "false").lower() == "true"
 AUTO_UPDATE_HOUR = int(os.getenv("AUTO_UPDATE_HOUR", "2"))  # Default: 2 AM
 AUTO_UPDATE_MINUTE = int(os.getenv("AUTO_UPDATE_MINUTE", "0"))  # Default: 00 minutes
+# OCR_JOBS: use at least 2 cores or half of available cores, whichever is larger
+_default_ocr_jobs = max(2, (os.cpu_count() or 2) // 2)
+OCR_JOBS = int(os.getenv("OCR_JOBS", str(_default_ocr_jobs)))
 
 # ============== Scheduler ==============
 
@@ -313,9 +316,10 @@ async def run_update(profile_name: str | None = None):
                     # Generate OCR version
                     _log_progress(profile_name_str, "ocr", f"Starting OCR: {output_path.name} -> {ocr_output_path.name}", "info")
                     _log_progress(profile_name_str, "ocr", f"Input PDF size: {output_path.stat().st_size / (1024 * 1024):.1f} MB", "info")
+                    _log_progress(profile_name_str, "ocr", f"Using {OCR_JOBS} parallel worker(s)", "info")
                     
                     proc = await asyncio.create_subprocess_exec(
-                        "ocrmypdf", "--verbose", "1", str(output_path), str(ocr_output_path),
+                        "ocrmypdf", "--jobs", str(OCR_JOBS), "--verbose", "1", str(output_path), str(ocr_output_path),
                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                     )
                     
