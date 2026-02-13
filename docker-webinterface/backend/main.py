@@ -311,17 +311,39 @@ async def run_update(profile_name: str | None = None):
                 # Check if we need to generate OCR version
                 if not ocr_output_path.exists():
                     # Generate OCR version
-                    _log_progress(profile_name_str, "ocr", "Generating searchable OCR PDF", "info")
+                    _log_progress(profile_name_str, "ocr", f"Starting OCR: {output_path.name} -> {ocr_output_path.name}", "info")
+                    _log_progress(profile_name_str, "ocr", f"Input PDF size: {output_path.stat().st_size / (1024 * 1024):.1f} MB", "info")
+                    
                     proc = await asyncio.create_subprocess_exec(
-                        "ocrmypdf", str(output_path), str(ocr_output_path),
+                        "ocrmypdf", "--verbose", "1", str(output_path), str(ocr_output_path),
                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                     )
-                    stdout, stderr = await proc.communicate()
+                    
+                    # Stream stderr to capture OCR progress
+                    async def log_stderr():
+                        stderr_lines = []
+                        while True:
+                            line = await proc.stderr.readline()
+                            if not line:
+                                break
+                            decoded = line.decode().strip()
+                            stderr_lines.append(decoded)
+                            if decoded:
+                                _log_progress(profile_name_str, "ocr", decoded, "info")
+                        return stderr_lines
+                    
+                    stderr_lines = await log_stderr()
+                    stdout = await proc.stdout.read()
+                    await proc.wait()
+                    
                     if proc.returncode == 0:
                         ocr_size_mb = ocr_output_path.stat().st_size / (1024 * 1024)
                         _log_progress(profile_name_str, "ocr", f"OCR complete ({ocr_size_mb:.1f} MB)", "success")
                     else:
-                        _log_progress(profile_name_str, "ocr", f"Failed: {stderr.decode()[:200]}", "error")
+                        _log_progress(profile_name_str, "ocr", f"Process exited with code {proc.returncode}", "error")
+                        _log_progress(profile_name_str, "ocr", f"Last 10 stderr lines: {stderr_lines[-10:]}", "error")
+                        if stdout:
+                            _log_progress(profile_name_str, "ocr", f"stdout: {stdout.decode()[:500]}", "error")
                 else:
                     _log_progress(profile_name_str, "ocr", "OCR PDF already exists", "success")
                 
