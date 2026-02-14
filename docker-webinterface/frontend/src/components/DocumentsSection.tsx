@@ -1,8 +1,23 @@
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { api } from "@/lib/api";
 import type { Document } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Download, RefreshCw, Trash2, FileText } from "lucide-react";
 
 interface DocumentsSectionProps {
@@ -33,6 +48,91 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
     onDocumentsChange();
   };
 
+  const filteredDocuments = useMemo(
+    () => documents.filter((d) => !d.is_ocr),
+    [documents]
+  );
+
+  const columns: ColumnDef<Document>[] = useMemo(
+    () => [
+      {
+        accessorKey: "profile",
+        header: "Profile",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            {row.getValue("profile")}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "airac_date",
+        header: "AIRAC",
+      },
+      {
+        accessorKey: "size",
+        header: "Size",
+        cell: ({ row }) => formatBytes(row.getValue("size")),
+      },
+      {
+        accessorKey: "modified",
+        header: "Date",
+        cell: ({ row }) => formatDate(row.getValue("modified")),
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const d = row.original;
+          const ocrDoc = documents.find(
+            (doc) => doc.profile === d.profile && doc.airac_date === d.airac_date && doc.is_ocr
+          );
+          return (
+            <div className="text-right space-x-2">
+              <Button size="sm" variant="outline" asChild>
+                <a href={api.getDocumentUrl(d.path)} target="_blank" rel="noopener">
+                  <Download className="mr-1 h-4 w-4" /> PDF
+                </a>
+              </Button>
+              <Button
+                size="sm"
+                variant={ocrDoc ? "default" : "secondary"}
+                disabled={!ocrDoc}
+                asChild={!!ocrDoc}
+              >
+                {ocrDoc ? (
+                  <a href={api.getDocumentUrl(ocrDoc.path)} target="_blank" rel="noopener">
+                    <Download className="mr-1 h-4 w-4" /> OCR
+                  </a>
+                ) : (
+                  <span>
+                    <Download className="mr-1 h-4 w-4" /> OCR
+                  </span>
+                )}
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(d.profile, d.name)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    [documents]
+  );
+
+  const table = useReactTable({
+    data: filteredDocuments,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+  });
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -47,68 +147,88 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
         </div>
       </CardHeader>
       <CardContent>
-        {documents.length === 0 ? (
+        {filteredDocuments.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">No documents yet</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Profile</TableHead>
-                <TableHead>AIRAC</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {documents
-                .filter((d) => !d.is_ocr)
-                .map((d) => {
-                  const ocrDoc = documents.find(
-                    (doc) => doc.profile === d.profile && doc.airac_date === d.airac_date && doc.is_ocr
-                  );
-                  return (
-                    <TableRow key={d.path}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          {d.profile}
-                        </div>
-                      </TableCell>
-                      <TableCell>{d.airac_date}</TableCell>
-                      <TableCell>{formatBytes(d.size)}</TableCell>
-                      <TableCell>{formatDate(d.modified)}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button size="sm" variant="outline" asChild>
-                          <a href={api.getDocumentUrl(d.path)} target="_blank" rel="noopener">
-                            <Download className="mr-1 h-4 w-4" /> PDF
-                          </a>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={ocrDoc ? "default" : "secondary"}
-                          disabled={!ocrDoc}
-                          asChild={!!ocrDoc}
-                        >
-                          {ocrDoc ? (
-                            <a href={api.getDocumentUrl(ocrDoc.path)} target="_blank" rel="noopener">
-                              <Download className="mr-1 h-4 w-4" /> OCR
-                            </a>
-                          ) : (
-                            <span>
-                              <Download className="mr-1 h-4 w-4" /> OCR
-                            </span>
-                          )}
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDeleteDocument(d.profile, d.name)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+          <>
+            <div className="overflow-hidden rounded-md border">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center text-muted-foreground"
+                      >
+                        No documents yet
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {filteredDocuments.length > 10 && (
+              <div className="flex items-center justify-between pt-4">
+                <div className="text-sm text-muted-foreground">
+                  Page {table.getState().pagination.pageIndex + 1} of{" "}
+                  {table.getPageCount()}
+                </div>
+                <Pagination className="mx-0 w-auto">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          table.previousPage();
+                        }}
+                        className={!table.getCanPreviousPage() ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          table.nextPage();
+                        }}
+                        className={!table.getCanNextPage() ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
