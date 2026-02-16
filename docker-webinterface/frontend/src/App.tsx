@@ -45,7 +45,7 @@ function AppContent() {
         <ProfilesSection profiles={profiles} onProfilesChange={loadProfiles} />
         <DocumentsSection documents={documents} onDocumentsChange={loadDocuments} />
         <RunHistoryTable />
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-center" richColors />
       </div>
     </div>
   );
