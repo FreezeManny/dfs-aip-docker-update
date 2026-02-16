@@ -24,8 +24,6 @@ import { toast } from "sonner";
 interface DocumentsSectionProps {
   documents: Document[];
   onDocumentsChange: () => void;
-  onUpdate: () => void;
-  isUpdating: boolean;
 }
 
 function formatBytes(bytes: number): string {
@@ -42,7 +40,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpdating }: DocumentsSectionProps) {
+export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSectionProps) {
   const handleDeleteDocument = async (profile: string, filename: string) => {
     if (!confirm(`Delete ${filename}?`)) return;
     await api.deleteDocument(profile, filename);
@@ -61,7 +59,6 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
           description: "Please wait for the current update to finish",
         });
       }
-      onUpdate();
     } catch (error) {
       toast.error("Failed to start update", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -162,7 +159,7 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
           <Button size="sm" variant="outline" onClick={onDocumentsChange}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
-          <Button size="sm" onClick={handleForceFetch} disabled={isUpdating} className="bg-blue-600 hover:bg-blue-700">
+          <Button size="sm" onClick={handleForceFetch} className="bg-blue-600 hover:bg-blue-700">
             Force Fetch Charts
           </Button>
         </div>

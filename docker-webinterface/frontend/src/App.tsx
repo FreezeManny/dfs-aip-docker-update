@@ -12,7 +12,6 @@ import { Moon, Sun } from "lucide-react";
 function AppContent() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [isUpdating, setIsUpdating] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const loadProfiles = async () => {
@@ -27,17 +26,7 @@ function AppContent() {
     await Promise.all([loadProfiles(), loadDocuments()]);
   };
 
-  const handleUpdate = async () => {
-    // Note: toast is handled in DocumentsSection
-    setIsUpdating(true);
-    try {
-      await api.triggerUpdate();
-    } finally {
-      // Set a timeout to reset the updating state after the update should be complete
-      // This is a simple approach since we removed streaming
-      setTimeout(() => setIsUpdating(false), 3000);
-    }
-  };
+
 
   useEffect(() => {
     loadAll();
@@ -54,7 +43,7 @@ function AppContent() {
         </header>
 
         <ProfilesSection profiles={profiles} onProfilesChange={loadProfiles} />
-        <DocumentsSection documents={documents} onDocumentsChange={loadDocuments} onUpdate={handleUpdate} isUpdating={isUpdating} />
+        <DocumentsSection documents={documents} onDocumentsChange={loadDocuments} />
         <RunHistoryTable />
         <Toaster position="top-right" richColors />
       </div>
