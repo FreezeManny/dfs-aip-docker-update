@@ -3,17 +3,22 @@ DFS AIP Updater - Single-file FastAPI Backend
 """
 
 import asyncio
+import fcntl
 import json
 import logging
 import os
+import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+from pydantic_settings import BaseSettings
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -22,24 +27,38 @@ logger = logging.getLogger(__name__)
 
 # ============== Config ==============
 
-OUTPUT_DIR = Path("/app/output")
-CACHE_DIR = Path("/app/cache")
-DATA_DIR = Path("/app/data")
+class Settings(BaseSettings):
+    """Application settings from environment variables"""
+    output_dir: Path = Path("/app/output")
+    cache_dir: Path = Path("/app/cache")
+    data_dir: Path = Path("/app/data")
+    
+    auto_update_enabled: bool = False
+    auto_update_hour: int = Field(default=2, ge=0, lt=24)
+    auto_update_minute: int = Field(default=0, ge=0, lt=60)
+    
+    ocr_jobs: int = Field(default_factory=lambda: max(2, (os.cpu_count() or 2) // 2), ge=1)
+    
+    # Minimum free disk space in GB before generating PDFs
+    min_free_space_gb: float = Field(default=1.0, ge=0.1)
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+settings = Settings()
+
+OUTPUT_DIR = settings.output_dir
+CACHE_DIR = settings.cache_dir
+DATA_DIR = settings.data_dir
 PROFILES_FILE = DATA_DIR / "profiles.json"
 RUNS_DIR = DATA_DIR / "runs"
+LOCK_FILE = DATA_DIR / "update.lock"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Scheduler configuration from environment variables
-AUTO_UPDATE_ENABLED = os.getenv("AUTO_UPDATE_ENABLED", "false").lower() == "true"
-AUTO_UPDATE_HOUR = int(os.getenv("AUTO_UPDATE_HOUR", "2"))  # Default: 2 AM
-AUTO_UPDATE_MINUTE = int(os.getenv("AUTO_UPDATE_MINUTE", "0"))  # Default: 00 minutes
-# OCR_JOBS: use at least 2 cores or half of available cores, whichever is larger
-_default_ocr_jobs = max(2, (os.cpu_count() or 2) // 2)
-OCR_JOBS = int(os.getenv("OCR_JOBS", str(_default_ocr_jobs)))
 
 # ============== Scheduler ==============
 
@@ -47,24 +66,27 @@ scheduler = AsyncIOScheduler()
 
 async def scheduled_update():
     """Run automatic update (called by scheduler)"""
-    global _update_running
-    if _update_running:
-        logger.warning("Scheduled update skipped: update already running")
-        return
-    
     logger.info("Starting scheduled automatic update")
-    await run_update()
+    try:
+        await run_update()
+    except HTTPException as e:
+        if e.status_code == 409:
+            logger.warning("Scheduled update skipped: update already running")
+        else:
+            logger.error(f"Scheduled update failed: {e.detail}")
+    except Exception as e:
+        logger.error(f"Scheduled update failed: {str(e)}")
 
 # ============== App ==============
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    if AUTO_UPDATE_ENABLED:
-        logger.info(f"Auto-update enabled: scheduled for {AUTO_UPDATE_HOUR:02d}:{AUTO_UPDATE_MINUTE:02d} daily")
+    if settings.auto_update_enabled:
+        logger.info(f"Auto-update enabled: scheduled for {settings.auto_update_hour:02d}:{settings.auto_update_minute:02d} daily")
         scheduler.add_job(
             scheduled_update,
-            CronTrigger(hour=AUTO_UPDATE_HOUR, minute=AUTO_UPDATE_MINUTE),
+            CronTrigger(hour=settings.auto_update_hour, minute=settings.auto_update_minute),
             id="auto_update",
             name="Automatic AIP Update",
             replace_existing=True,
@@ -82,7 +104,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DFS AIP Updater", version="3.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-_update_running = False
+_update_lock_file: Optional[object] = None
 _current_run_logs: dict[str, list] = {}  # profile_name -> list of logs
 
 
@@ -108,10 +130,23 @@ def _log_progress(profile: str, stage: str, message: str = "", status: str = "in
 # ============== Models ==============
 
 class ProfileData(BaseModel):
-    name: str
-    flight_rule: str = "vfr"
-    filters: list[str] = []
+    name: str = Field(..., min_length=1, max_length=100, pattern=r'^[a-zA-Z0-9_-]+$')
+    flight_rule: str = Field(default="vfr", pattern=r'^(vfr|ifr)$')
+    filters: list[str] = Field(default=[], max_length=100)
     enabled: bool = True
+    
+    @field_validator('filters')
+    @classmethod
+    def validate_filters(cls, v: list[str]) -> list[str]:
+        """Validate filter format to prevent command injection"""
+        for filter_str in v:
+            # Only allow: alphanumeric, dash, underscore, forward slash, period, asterisk
+            # This matches typical AIP section patterns like "AD-2.EDDF" or "GEN-*"
+            if not re.match(r'^[a-zA-Z0-9/_.*-]+$', filter_str):
+                raise ValueError(f'Invalid filter format: {filter_str}. Only alphanumeric, dash, underscore, slash, period, and asterisk allowed.')
+            if len(filter_str) > 200:
+                raise ValueError(f'Filter too long: {filter_str}')
+        return v
 
 
 # ============== Profile Storage ==============
@@ -128,6 +163,63 @@ def _save_profiles(profiles: list[dict]) -> None:
 
 def _sanitize(name: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+
+
+def _acquire_update_lock() -> object:
+    """Acquire exclusive lock for update process. Raises HTTPException if already locked."""
+    global _update_lock_file
+    
+    if _update_lock_file is not None:
+        raise HTTPException(409, "Update already in progress")
+    
+    lock_file = open(LOCK_FILE, 'w')
+    try:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_file.write(f"{os.getpid()}\n{datetime.now(timezone.utc).isoformat()}\n")
+        lock_file.flush()
+        _update_lock_file = lock_file
+        return lock_file
+    except BlockingIOError:
+        lock_file.close()
+        raise HTTPException(409, "Update already in progress (locked by another process)")
+    except Exception as e:
+        lock_file.close()
+        raise HTTPException(500, f"Failed to acquire lock: {str(e)}")
+
+
+def _release_update_lock():
+    """Release the update lock"""
+    global _update_lock_file
+    
+    if _update_lock_file is not None:
+        try:
+            fcntl.flock(_update_lock_file.fileno(), fcntl.LOCK_UN)
+            _update_lock_file.close()
+        except Exception as e:
+            logger.error(f"Failed to release lock cleanly: {e}")
+        finally:
+            _update_lock_file = None
+            # Clean up lock file
+            try:
+                LOCK_FILE.unlink(missing_ok=True)
+            except Exception as e:
+                logger.error(f"Failed to remove lock file: {e}")
+
+
+def _check_disk_space() -> tuple[bool, float]:
+    """Check if sufficient disk space is available.
+    
+    Returns:
+        (has_space, free_gb): True if enough space, and the amount of free space in GB
+    """
+    try:
+        stat = shutil.disk_usage(OUTPUT_DIR)
+        free_gb = stat.free / (1024 ** 3)
+        has_space = free_gb >= settings.min_free_space_gb
+        return has_space, free_gb
+    except Exception as e:
+        logger.error(f"Failed to check disk space: {e}")
+        return True, 0.0  # Assume space is available if check fails
 
 
 def _validate_path(base_dir: Path, *parts: str) -> Path:
@@ -199,11 +291,20 @@ def delete_profile(name: str):
 # ============== Update ==============
 
 async def run_update(profile_name: str | None = None):
-    global _update_running
-    _update_running = True
-    _log_progress("", "system", "Starting update process", "info")
-
+    # Acquire lock to prevent concurrent updates
+    _acquire_update_lock()
+    
     try:
+        _log_progress("", "system", "Starting update process", "info")
+        
+        # Check disk space
+        has_space, free_gb = _check_disk_space()
+        if not has_space:
+            error_msg = f"Insufficient disk space: {free_gb:.2f} GB free, {settings.min_free_space_gb:.2f} GB required"
+            _log_progress("", "system", error_msg, "error")
+            raise HTTPException(507, error_msg)
+        
+        _log_progress("", "system", f"Disk space: {free_gb:.2f} GB available", "info")
         profiles = [p for p in _load_profiles() if p.get("enabled", True)]
         if profile_name:
             profiles = [p for p in profiles if p["name"] == profile_name]
@@ -290,10 +391,10 @@ async def run_update(profile_name: str | None = None):
                     # Generate OCR version
                     _log_progress(profile_name_str, "ocr", f"Starting OCR: {output_path.name} -> {ocr_output_path.name}", "info")
                     _log_progress(profile_name_str, "ocr", f"Input PDF size: {output_path.stat().st_size / (1024 * 1024):.1f} MB", "info")
-                    _log_progress(profile_name_str, "ocr", f"Using {OCR_JOBS} parallel worker(s)", "info")
+                    _log_progress(profile_name_str, "ocr", f"Using {settings.ocr_jobs} parallel worker(s)", "info")
                     
                     proc = await asyncio.create_subprocess_exec(
-                        "ocrmypdf", "--jobs", str(OCR_JOBS), "--verbose", "1", str(output_path), str(ocr_output_path),
+                        "ocrmypdf", "--jobs", str(settings.ocr_jobs), "--verbose", "1", str(output_path), str(ocr_output_path),
                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                     )
                     
@@ -329,17 +430,34 @@ async def run_update(profile_name: str | None = None):
 
             except Exception as e:
                 _log_progress(profile_name_str, "error", f"Exception: {str(e)[:200]}", "error")
+                logger.exception(f"Profile {profile_name_str} failed with exception")
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions (like disk space errors)
+    except Exception as e:
+        _log_progress("", "system", f"Fatal error: {str(e)[:200]}", "error")
+        logger.exception("Update process failed with exception")
+        raise HTTPException(500, f"Update failed: {str(e)}")
     finally:
-        _update_running = False
         _log_progress("", "system", "Update process finished", "info")
         _save_run()
         _current_run_logs.clear()
+        _release_update_lock()
 
 
 @app.post("/api/update/run")
 async def trigger_update(background_tasks: BackgroundTasks, profile: str | None = None):
-    if _update_running:
+    # Check if update is already running
+    if _update_lock_file is not None:
         return {"status": "already_running"}
+    
+    # Check disk space before starting
+    has_space, free_gb = _check_disk_space()
+    if not has_space:
+        raise HTTPException(
+            507,
+            f"Insufficient disk space: {free_gb:.2f} GB free, {settings.min_free_space_gb:.2f} GB required"
+        )
+    
     background_tasks.add_task(run_update, profile)
     return {"status": "started"}
 
