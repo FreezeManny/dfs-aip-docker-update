@@ -149,6 +149,11 @@ class ProfileData(BaseModel):
         return v
 
 
+class CleanupRequest(BaseModel):
+    delete_cache: bool = False
+    delete_output: bool = False
+
+
 # ============== Profile Storage ==============
 
 def _load_profiles() -> list[dict]:
@@ -460,6 +465,49 @@ async def trigger_update(background_tasks: BackgroundTasks, profile: str | None 
     
     background_tasks.add_task(run_update, profile)
     return {"status": "started"}
+
+
+@app.post("/api/cleanup")
+def run_cleanup(data: CleanupRequest):
+    try:
+        _acquire_update_lock()
+    except HTTPException:
+         raise HTTPException(409, "Cleanup blocked: Update in progress")
+
+    try:
+        results = []
+        if data.delete_cache:
+            for item in CACHE_DIR.iterdir():
+                if item.name == ".gitkeep": continue
+                if item.is_file() or item.is_symlink():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            results.append("Cache cleared")
+
+        if data.delete_output:
+            for item in OUTPUT_DIR.iterdir():
+                if item.name == ".gitkeep": continue
+                if item.is_file() or item.is_symlink():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            # Recreate profile directories
+            try:
+                for profile in _load_profiles():
+                    (OUTPUT_DIR / _sanitize(profile["name"])).mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass # Ignore if profiles can't be loaded or created
+            results.append("Documents deleted")
+            
+        logger.info(f"Cleanup performed: {', '.join(results)}")
+        return {"status": "ok", "message": ", ".join(results)}
+            
+    except Exception as e:
+        logger.error(f"Cleanup failed: {e}")
+        raise HTTPException(500, f"Cleanup failed: {str(e)}")
+    finally:
+        _release_update_lock()
 
 
 # ============== Run History ==============

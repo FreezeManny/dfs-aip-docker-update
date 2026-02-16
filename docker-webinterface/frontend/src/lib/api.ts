@@ -54,6 +54,14 @@ export const api = {
     });
   },
 
+  async cleanup(deleteCache: boolean, deleteOutput: boolean): Promise<void> {
+    await fetch(`${API_BASE}/cleanup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete_cache: deleteCache, delete_output: deleteOutput }),
+    });
+  },
+
   async deleteProfile(name: string): Promise<void> {
     await fetch(`${API_BASE}/profiles/${encodeURIComponent(name)}`, {
       method: "DELETE",
