@@ -8,12 +8,11 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from collections import deque
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -84,8 +83,6 @@ app = FastAPI(title="DFS AIP Updater", version="3.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 _update_running = False
-_progress_queue: deque = deque(maxlen=1000)  # Keep last 1000 messages
-_current_run_id = None
 _current_run_logs: dict[str, list] = {}  # profile_name -> list of logs
 
 
@@ -98,7 +95,6 @@ def _log_progress(profile: str, stage: str, message: str = "", status: str = "in
         "message": message,
         "status": status,  # "info", "warning", "error", "success"
     }
-    _progress_queue.append(json.dumps(msg))
     
     # Store in current run logs
     if profile and profile != "":
@@ -202,31 +198,9 @@ def delete_profile(name: str):
 
 # ============== Update ==============
 
-@app.get("/api/update/progress")
-async def get_update_progress():
-    """Server-Sent Events endpoint for real-time progress"""
-    async def event_generator():
-        # Send all existing messages
-        for msg in _progress_queue:
-            yield f"data: {msg}\n\n"
-        
-        # Keep connection open and send new messages as they arrive
-        last_index = len(_progress_queue)
-        while _update_running or last_index < len(_progress_queue):
-            if last_index < len(_progress_queue):
-                msg = _progress_queue[last_index]
-                yield f"data: {msg}\n\n"
-                last_index += 1
-            else:
-                await asyncio.sleep(0.1)
-    
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
 async def run_update(profile_name: str | None = None):
     global _update_running
     _update_running = True
-    _progress_queue.clear()
     _log_progress("", "system", "Starting update process", "info")
 
     try:
@@ -415,11 +389,8 @@ def get_run(run_id: str):
 
 def _save_run():
     """Save current run logs to file"""
-    global _current_run_id
-    
     run_timestamp = datetime.now(timezone.utc).isoformat()
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    _current_run_id = run_id
     
     run_data = {
         "id": run_id,
@@ -483,12 +454,6 @@ def delete_document(profile: str, filename: str):
     
     file_path.unlink()
     return {"status": "ok"}
-
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
-
 
 if __name__ == "__main__":
     import uvicorn
