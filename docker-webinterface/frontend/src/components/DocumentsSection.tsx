@@ -19,6 +19,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Download, RefreshCw, Trash2, FileText } from "lucide-react";
+import { toast } from "sonner";
 
 interface DocumentsSectionProps {
   documents: Document[];
@@ -46,6 +47,26 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
     if (!confirm(`Delete ${filename}?`)) return;
     await api.deleteDocument(profile, filename);
     onDocumentsChange();
+  };
+
+  const handleForceFetch = async () => {
+    try {
+      const result = await api.triggerUpdate();
+      if (result.status === "started") {
+        toast.success("Update started", {
+          description: "Charts are being fetched in the background",
+        });
+      } else if (result.status === "already_running") {
+        toast.warning("Update already running", {
+          description: "Please wait for the current update to finish",
+        });
+      }
+      onUpdate();
+    } catch (error) {
+      toast.error("Failed to start update", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   };
 
   const filteredDocuments = useMemo(
@@ -141,7 +162,7 @@ export function DocumentsSection({ documents, onDocumentsChange, onUpdate, isUpd
           <Button size="sm" variant="outline" onClick={onDocumentsChange}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
-          <Button size="sm" onClick={onUpdate} disabled={isUpdating} className="bg-blue-600 hover:bg-blue-700">
+          <Button size="sm" onClick={handleForceFetch} disabled={isUpdating} className="bg-blue-600 hover:bg-blue-700">
             Force Fetch Charts
           </Button>
         </div>

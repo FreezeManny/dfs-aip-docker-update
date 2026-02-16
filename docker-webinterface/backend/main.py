@@ -365,9 +365,9 @@ async def run_update(profile_name: str | None = None):
 @app.post("/api/update/run")
 async def trigger_update(background_tasks: BackgroundTasks, profile: str | None = None):
     if _update_running:
-        raise HTTPException(409, "Update already running")
+        return {"status": "already_running"}
     background_tasks.add_task(run_update, profile)
-    return {"status": "ok"}
+    return {"status": "started"}
 
 
 # ============== Run History ==============

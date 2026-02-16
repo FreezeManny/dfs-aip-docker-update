@@ -1,29 +1,18 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { Profile, Document, UpdateProgress } from "@/lib/api";
+import type { Profile, Document } from "@/lib/api";
 import { ProfilesSection } from "@/components/ProfilesSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
-import { UpdateSection } from "@/components/LiveUpdateSection";
 import { RunHistoryTable } from "@/components/RunHistoryTable";
 import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "sonner";
 import { Moon, Sun } from "lucide-react";
-
-interface ProfileStatus {
-  name: string;
-  stage: string;
-  status: "pending" | "running" | "success" | "error";
-  lastMessage: string;
-  messages: Array<{ stage: string; message: string; status: string }>;
-}
 
 function AppContent() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [profilesStatus, setProfilesStatus] = useState<Record<string, ProfileStatus>>({});
-  const [expandedProfile, setExpandedProfile] = useState<string | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   const loadProfiles = async () => {
@@ -39,43 +28,15 @@ function AppContent() {
   };
 
   const handleUpdate = async () => {
+    // Note: toast is handled in DocumentsSection
     setIsUpdating(true);
-    setProfilesStatus({});
-    setExpandedProfile(null);
-
-    // Start streaming progress
-    unsubscribeRef.current = api.streamUpdateProgress((progress: UpdateProgress) => {
-      if (progress.profile !== "") {
-        // Only handle profile messages
-        setProfilesStatus((prev) => {
-          const profileName = progress.profile;
-          const existing = prev[profileName] || { 
-            name: profileName, 
-            stage: "", 
-            status: "pending", 
-            lastMessage: "",
-            messages: [] 
-          };
-          
-          return {
-            ...prev,
-            [profileName]: {
-              ...existing,
-              stage: progress.stage,
-              status: (progress.status === "error" ? "error" : progress.status === "success" ? "success" : "running") as "pending" | "running" | "success" | "error",
-              lastMessage: progress.message,
-              messages: [...existing.messages, { stage: progress.stage, message: progress.message, status: progress.status }],
-            },
-          };
-        });
-      } else if (progress.stage === "system" && progress.message === "Update process finished") {
-        // Update is complete, reset the updating state
-        setIsUpdating(false);
-      }
-    });
-
-    // Trigger update
-    await api.triggerUpdate();
+    try {
+      await api.triggerUpdate();
+    } finally {
+      // Set a timeout to reset the updating state after the update should be complete
+      // This is a simple approach since we removed streaming
+      setTimeout(() => setIsUpdating(false), 3000);
+    }
   };
 
   useEffect(() => {
@@ -94,8 +55,8 @@ function AppContent() {
 
         <ProfilesSection profiles={profiles} onProfilesChange={loadProfiles} />
         <DocumentsSection documents={documents} onDocumentsChange={loadDocuments} onUpdate={handleUpdate} isUpdating={isUpdating} />
-        {Object.keys(profilesStatus).length > 0 && <UpdateSection profilesStatus={profilesStatus} expandedProfile={expandedProfile} onExpandProfile={setExpandedProfile} />}
         <RunHistoryTable />
+        <Toaster position="top-right" richColors />
       </div>
     </div>
   );

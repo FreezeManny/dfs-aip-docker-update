@@ -17,14 +17,6 @@ export interface Document {
   is_ocr: boolean;
 }
 
-export interface UpdateProgress {
-  timestamp: string;
-  profile: string;
-  stage: string;
-  message: string;
-  status: "info" | "warning" | "error" | "success";
-}
-
 export interface RunSummary {
   id: string;
   timestamp: string;
@@ -99,27 +91,16 @@ export const api = {
   },
 
   // Update with progress streaming
-  async triggerUpdate(profile?: string): Promise<void> {
+  async triggerUpdate(profile?: string): Promise<{ status: "started" | "already_running" }> {
     const url = profile ? `${API_BASE}/update/run?profile=${encodeURIComponent(profile)}` : `${API_BASE}/update/run`;
-    await fetch(url, { method: "POST" });
-  },
-
-  streamUpdateProgress(onProgress: (progress: UpdateProgress) => void): () => void {
-    const eventSource = new EventSource(`${API_BASE}/update/progress`);
-    
-    eventSource.onmessage = (event) => {
-      try {
-        const progress = JSON.parse(event.data) as UpdateProgress;
-        onProgress(progress);
-      } catch (e) {
-        console.error("Failed to parse progress message:", e);
+    const res = await fetch(url, { method: "POST" });
+    if (!res.ok) {
+      if (res.status === 409) {
+        return { status: "already_running" };
       }
-    };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
-    return () => eventSource.close();
+      throw new Error(`Failed to trigger update: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return data;
   },
 };
