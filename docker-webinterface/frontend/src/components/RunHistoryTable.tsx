@@ -9,6 +9,7 @@ import {
 import { api, type RunSummary, type RunDetail } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -94,6 +95,22 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
               </>
             )}
           </div>
+        );
+      },
+    },
+    {
+      accessorKey: "pdf_created",
+      header: "New PDFs",
+      cell: ({ row }: any) => {
+        const pdfCreated = row.getValue("pdf_created") as boolean;
+        return pdfCreated ? (
+          <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+            New PDF
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="text-muted-foreground">
+            Existing
+          </Badge>
         );
       },
     },

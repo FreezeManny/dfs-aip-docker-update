@@ -106,6 +106,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 _update_lock_file: Optional[object] = None
 _current_run_logs: dict[str, list] = {}  # profile_name -> list of logs
+_current_run_metadata: dict[str, any] = {}  # metadata about the current run
 
 
 def _log_progress(profile: str, stage: str, message: str = "", status: str = "info"):
@@ -299,6 +300,10 @@ async def run_update(profile_name: str | None = None):
     # Acquire lock to prevent concurrent updates
     _acquire_update_lock()
     
+    # Initialize run metadata
+    global _current_run_metadata
+    _current_run_metadata = {"pdf_created": False}
+    
     try:
         _log_progress("", "system", "Starting update process", "info")
         
@@ -362,6 +367,7 @@ async def run_update(profile_name: str | None = None):
                 else:
                     # Generate PDF
                     _log_progress(profile_name_str, "pdf_gen", "Generating PDF", "info")
+                    _current_run_metadata["pdf_created"] = True
                     filter_args = [arg for f in profile.get("filters", []) for arg in ["-f", f]]
                     proc = await asyncio.create_subprocess_exec(
                         "python3", "-u", "/app/aip.py", "--cache", cache_path,
@@ -446,6 +452,7 @@ async def run_update(profile_name: str | None = None):
         _log_progress("", "system", "Update process finished", "info")
         _save_run()
         _current_run_logs.clear()
+        _current_run_metadata.clear()
         _release_update_lock()
 
 
@@ -520,6 +527,7 @@ def list_runs():
         try:
             data = json.loads(run_file.read_text())
             logs = data.get("logs", {})
+            metadata = data.get("metadata", {})
             
             # Determine overall status: "success" if all profiles completed without error, else "error"
             status = "success"
@@ -533,6 +541,7 @@ def list_runs():
                 "timestamp": data.get("timestamp"),
                 "profiles": list(logs.keys()),
                 "status": status,
+                "pdf_created": metadata.get("pdf_created", False),
             })
         except Exception as e:
             logger.error(f"Failed to read run {run_file}: {e}")
@@ -562,6 +571,7 @@ def _save_run():
         "id": run_id,
         "timestamp": run_timestamp,
         "logs": _current_run_logs.copy(),
+        "metadata": _current_run_metadata.copy(),
     }
     
     run_file = RUNS_DIR / f"{run_id}.json"

@@ -22,6 +22,7 @@ export interface RunSummary {
   timestamp: string;
   profiles: string[];
   status: "success" | "error";
+  pdf_created: boolean;
 }
 
 export interface RunDetail {
