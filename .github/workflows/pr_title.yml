@@ -7,19 +7,22 @@ name: PR Title
 # inside a branch are yours to name `wip` or `fixup`, because none of them
 # reach main or the changelog.
 on:
-  # `pr-title` is a required check (see the job comment below), and required
-  # checks are validated per commit SHA. Without `synchronize`, pushing a new
-  # commit leaves no check run for that SHA at all, so the PR hangs on
-  # "Expected — waiting for status to be reported" until someone manually
-  # re-runs the workflow. Including it re-checks an unchanged title on every
-  # push, but that's cheap, and it's the only way each new commit gets its own
-  # passing check.
-  pull_request_target:
+  # `pull_request` rather than `pull_request_target`: the latter reads the
+  # workflow from the base branch, so this file could never run on the PR that
+  # introduces it. Reading the title needs no write token, so the restricted
+  # `pull_request` token is enough.
+  #
+  # `synchronize` is deliberately absent, since a push does not change the
+  # title. The cost: `pr-title` is a required check (see the job comment
+  # below) and required checks are validated per commit SHA, so a push leaves
+  # the new SHA with no `pr-title` run and the PR waits on "Expected — waiting
+  # for status to be reported" until the title is edited or the workflow is
+  # re-run by hand.
+  pull_request:
     types:
       - opened
       - edited
       - reopened
-      - synchronize
 
 permissions:
   pull-requests: read
