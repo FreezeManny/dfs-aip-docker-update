@@ -5,7 +5,7 @@ import { ProfilesSection } from "@/components/ProfilesSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
 import { RunHistoryTable } from "@/components/RunHistoryTable";
 import { CleanupButton } from "@/components/CleanupButton";
-import { useTheme } from "@/lib/theme";
+import { useTheme } from "@/lib/theme-context";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 import { Moon, Sun } from "lucide-react";
@@ -23,14 +23,18 @@ function AppContent() {
     setDocuments(await api.getDocuments());
   };
 
-  const loadAll = async () => {
-    await Promise.all([loadProfiles(), loadDocuments()]);
-  };
-
-
-
   useEffect(() => {
-    loadAll();
+    let cancelled = false;
+    Promise.all([api.getProfiles(), api.getDocuments()]).then(
+      ([loadedProfiles, loadedDocuments]) => {
+        if (cancelled) return;
+        setProfiles(loadedProfiles);
+        setDocuments(loadedDocuments);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

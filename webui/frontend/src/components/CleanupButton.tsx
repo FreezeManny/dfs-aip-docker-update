@@ -47,8 +47,8 @@ export function CleanupButton() {
         // A simple window.location.reload() or exposing a refresh context would work.
         // Since deleting PDFs affects the Documents list immediately.
         setTimeout(() => window.location.reload(), 1000); 
-    } catch (e: any) {
-        toast.error("Cleanup failed. " + (e.message || ""));
+    } catch (e) {
+        toast.error("Cleanup failed. " + (e instanceof Error ? e.message : ""));
         console.error(e);
         setIsConfirming(false); 
     } finally {
