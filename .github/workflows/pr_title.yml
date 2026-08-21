@@ -1,0 +1,59 @@
+name: PR Title
+
+# Every PR lands on main as exactly one squash commit whose message is the PR
+# title, so the title is the only string release-please ever reads — and the
+# only one that has to be Conventional. Checking it here replaces the old
+# per-commit lint (commit-lint.yml plus a local commit-msg hook): commits
+# inside a branch are yours to name `wip` or `fixup`, because none of them
+# reach main or the changelog.
+on:
+  # `pull_request` rather than `pull_request_target`: the latter reads the
+  # workflow from the base branch, so this file could never run on the PR that
+  # introduces it. Reading the title needs no write token, so the restricted
+  # `pull_request` token is enough.
+  #
+  # `synchronize` is deliberately absent, since a push does not change the
+  # title. The cost: `pr-title` is a required check (see the job comment
+  # below) and required checks are validated per commit SHA, so a push leaves
+  # the new SHA with no `pr-title` run and the PR waits on "Expected — waiting
+  # for status to be reported" until the title is edited or the workflow is
+  # re-run by hand.
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+
+permissions:
+  pull-requests: read
+
+# Editing a title several times in a row supersedes the earlier checks.
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Named `pr-title` because the branch ruleset on main requires that check by
+  # name; renaming the job silently un-gates the branch.
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed conventional-commit types. Keep in sync with the
+          # release-please changelog sections.
+          types: |
+            feat
+            fix
+            chore
+            docs
+            test
+            refactor
+            ci
+            build
+            perf
+            style
+            revert

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   flexRender,
@@ -41,11 +41,14 @@ function formatDate(iso: string): string {
 }
 
 export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSectionProps) {
-  const handleDeleteDocument = async (profile: string, filename: string) => {
-    if (!confirm(`Delete ${filename}?`)) return;
-    await api.deleteDocument(profile, filename);
-    onDocumentsChange();
-  };
+  const handleDeleteDocument = useCallback(
+    async (profile: string, filename: string) => {
+      if (!confirm(`Delete ${filename}?`)) return;
+      await api.deleteDocument(profile, filename);
+      onDocumentsChange();
+    },
+    [onDocumentsChange]
+  );
 
   const handleForceFetch = async () => {
     try {
@@ -136,7 +139,7 @@ export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSect
         },
       },
     ],
-    [documents]
+    [documents, handleDeleteDocument]
   );
 
   const table = useReactTable({

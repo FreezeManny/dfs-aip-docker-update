@@ -71,7 +71,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     {
       accessorKey: "timestamp",
       header: "Time",
-      cell: ({ row }: any) => {
+      cell: ({ row }) => {
         const isoString = row.getValue("timestamp") as string;
         return new Date(isoString).toLocaleString();
       },
@@ -79,7 +79,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }: any) => {
+      cell: ({ row }) => {
         const status = row.getValue("status") as "success" | "error";
         return (
           <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     {
       accessorKey: "pdf_created",
       header: "New PDFs",
-      cell: ({ row }: any) => {
+      cell: ({ row }) => {
         const pdfCreated = row.getValue("pdf_created") as boolean;
         return pdfCreated ? (
           <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
@@ -117,7 +117,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     {
       accessorKey: "profiles",
       header: "Profiles",
-      cell: ({ row }: any) => {
+      cell: ({ row }) => {
         const profiles = row.getValue("profiles") as string[];
         return (
           <div className="flex flex-wrap gap-1">
@@ -135,7 +135,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     },
     {
       id: "actions",
-      cell: ({ row }: any) => (
+      cell: ({ row }) => (
         <Button
           onClick={() => viewRunDetail(row.original.id)}
           variant="outline"
@@ -177,9 +177,9 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
             <div className="overflow-hidden rounded-md border">
               <Table>
                 <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup: any) => (
+                  {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header: any) => {
+                      {headerGroup.headers.map((header) => {
                         return (
                           <TableHead key={header.id}>
                             {header.isPlaceholder
@@ -196,9 +196,9 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
                 </TableHeader>
                 <TableBody>
                   {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row: any) => (
+                    table.getRowModel().rows.map((row) => (
                       <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell: any) => (
+                        {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
                             {flexRender(
                               cell.column.columnDef.cell,
