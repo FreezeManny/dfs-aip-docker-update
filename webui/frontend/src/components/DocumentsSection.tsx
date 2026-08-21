@@ -1,11 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
+import { features, type Features } from "@/lib/table";
 import { api } from "@/lib/api";
 import type { Document } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -74,7 +70,7 @@ export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSect
     [documents]
   );
 
-  const columns: ColumnDef<Document>[] = useMemo(
+  const columns: ColumnDef<Features, Document>[] = useMemo(
     () => [
       {
         accessorKey: "profile",
@@ -142,13 +138,13 @@ export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSect
     [documents, handleDeleteDocument]
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: filteredDocuments,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize: 10,
       },
     },
@@ -220,7 +216,7 @@ export function DocumentsSection({ documents, onDocumentsChange }: DocumentsSect
             {filteredDocuments.length > 10 && (
               <div className="flex items-center justify-between pt-4">
                 <div className="text-sm text-muted-foreground">
-                  Page {table.getState().pagination.pageIndex + 1} of{" "}
+                  Page {table.state.pagination.pageIndex + 1} of{" "}
                   {table.getPageCount()}
                 </div>
                 <Pagination className="mx-0 w-auto">

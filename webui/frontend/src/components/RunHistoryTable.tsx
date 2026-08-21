@@ -1,11 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
+import { features, type Features } from "@/lib/table";
 import { api, type RunSummary, type RunDetail } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,11 +38,11 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
   const [selectedRunDetail, setSelectedRunDetail] = useState<RunDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadRuns();
-  }, [refreshTrigger]);
-
-  const loadRuns = async () => {
+  // Declared before the effect that calls it: as a `const` further down it was
+  // only reachable because effects run after render, and the effect could not
+  // list it as a dependency. useCallback keeps the identity stable so naming it
+  // as one does not re-fetch on every render.
+  const loadRuns = useCallback(async () => {
     setIsLoading(true);
     try {
       const runsData = await api.getRuns();
@@ -56,7 +52,18 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // `loadRuns` flips `isLoading` synchronously, which is exactly what
+    // set-state-in-effect warns about. Here the extra render pass is the point:
+    // it is what puts the button into its "Refreshing..." state while a parent
+    // bumps `refreshTrigger` after a run finishes. Suppressed rather than
+    // restructured because the alternatives either drop that feedback or move
+    // the flag to the call sites, which the trigger path has none of.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadRuns();
+  }, [refreshTrigger, loadRuns]);
 
   const viewRunDetail = async (runId: string) => {
     try {
@@ -67,7 +74,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     }
   };
 
-  const columns: ColumnDef<RunSummary>[] = [
+  const columns: ColumnDef<Features, RunSummary>[] = [
     {
       accessorKey: "timestamp",
       header: "Time",
@@ -147,13 +154,13 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
     },
   ];
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data: runs,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize: 10,
       },
     },
@@ -225,7 +232,7 @@ export function RunHistoryTable({ refreshTrigger = 0 }: RunHistoryTableProps) {
           {runs.length > 10 && (
             <div className="flex items-center justify-between pt-4">
               <div className="text-sm text-muted-foreground">
-                Page {table.getState().pagination.pageIndex + 1} of{" "}
+                Page {table.state.pagination.pageIndex + 1} of{" "}
                 {table.getPageCount()}
               </div>
               <Pagination className="mx-0 w-auto">
