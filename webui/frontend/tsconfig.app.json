@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
 
-    "baseUrl": ".",
+    /* `paths` without `baseUrl`: TypeScript 6 deprecates the option and 7
+       removes it outright, and relative `paths` patterns have resolved against
+       the tsconfig's own directory since 4.1, so it was doing nothing here.
+       Vite resolves the same alias separately, in vite.config.ts. */
     "paths": {
       "@/*": [
         "./src/*"

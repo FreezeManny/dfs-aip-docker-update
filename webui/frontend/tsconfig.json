@@ -9,7 +9,7 @@
     }
   ],
   "compilerOptions": {
-    "baseUrl": ".",
+    /* See the note in tsconfig.app.json on the dropped `baseUrl`. */
     "paths": {
       "@/*": ["./src/*"]
     }
