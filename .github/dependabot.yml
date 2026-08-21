@@ -16,10 +16,10 @@
 # Monday review queue of a dozen near-identical PRs. Grouped, each ecosystem
 # gives one PR that either goes green or does not.
 #
-# release-please-config.json is a monorepo config keyed on `webui/backend` and
-# `webui/frontend`, so a bump only ever affects the component whose directory it
-# touches. vendor/ has no entry here on purpose: it is a verbatim copy of
-# upstream, refreshed only by vendor/update.sh.
+# .github/release-please/ holds one config per component, keyed on
+# `webui/backend` and `webui/frontend`, so a bump only ever affects the
+# component whose directory it touches. vendor/ has no entry here on purpose:
+# it is a verbatim copy of upstream, refreshed only by vendor/update.sh.
 version: 2
 updates:
   # Workflow actions are pinned to floating major tags, so without this they
