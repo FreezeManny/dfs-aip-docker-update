@@ -1,0 +1,4 @@
+# `COPY . .` runs after the install layer: a host node_modules copied in would
+# overwrite the deps installed from the lockfile, and dist/ is rebuilt anyway.
+node_modules
+dist

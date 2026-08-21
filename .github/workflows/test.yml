@@ -78,8 +78,11 @@ jobs:
           # Same version as the build stage in webui/frontend/Dockerfile.
           node-version: "22"
 
-      # Matches the Dockerfile rather than pinning a pnpm version here that
-      # would drift from it.
+      # The pnpm version comes from the `packageManager` field in
+      # package.json, so this job, the Dockerfile and a local checkout all run
+      # the same one. Unpinned, corepack resolves "latest" per invocation, and
+      # a cached install layer written by an older pnpm makes the next
+      # `pnpm build` abort trying to re-install over it.
       - name: Enable pnpm
         run: corepack enable pnpm
 
