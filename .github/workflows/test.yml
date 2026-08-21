@@ -32,10 +32,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           # Same version as the base image in webui/backend/Dockerfile.
           python-version: "3.12"
@@ -48,14 +48,14 @@ jobs:
         run: python -m compileall -q webui/backend
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Build the image that ships, without pushing it: this is what catches a
       # bad requirements.txt bump or a broken apt package. Same cache scope as
       # docker-publish.yml, so the release build reuses the layers this PR
       # already paid for.
       - name: Build backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: webui/backend/Dockerfile
@@ -70,10 +70,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           # Same version as the build stage in webui/frontend/Dockerfile.
           node-version: "22"
@@ -102,13 +102,13 @@ jobs:
         run: pnpm build
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # nginx.conf and the nginx base image only exist in the image, so the
       # pnpm build above does not cover them. Same cache scope as
       # docker-publish.yml.
       - name: Build frontend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: webui/frontend
           file: webui/frontend/Dockerfile
