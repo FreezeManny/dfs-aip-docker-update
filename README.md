@@ -73,38 +73,39 @@ webui/           The web interface (this project's own code)
 
 ## Contributing
 
-This repo enforces [Conventional Commits](https://www.conventionalcommits.org/) so that
-release-please can derive versions and changelogs automatically. After cloning, install the
-commit-message hook **once**:
+Every PR is **squash-merged**, and the squash commit message is the **PR title**. That single
+title is therefore the only string release-please ever reads, and the only one that has to be
+a [Conventional Commit](https://www.conventionalcommits.org/) — the **PR Title** check enforces
+it. Commits *inside* your branch are yours: `wip`, `fixup`, `asdf`, whatever helps you save
+work. None of them reach `main` or the changelog, so there is no commit-message hook to install.
 
-```sh
-# Install the pre-commit runner (needs Python 3.9+), pick one:
-pipx install pre-commit        # recommended
-# or: pip install pre-commit
-# or: uv tool install pre-commit
-
-# Then activate the git hook in your clone:
-pre-commit install --install-hooks
-```
-
-After that, each commit message is validated locally. Format:
+Title format:
 
 ```
 <type>(<optional scope>): <description>
 ```
 
 Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`,
-`chore`, `revert`, `wip`. Append `!` for a breaking change (e.g. `feat!:`). Examples:
+`chore`, `revert`. Append `!` for a breaking change (e.g. `feat!:`). Because the squash body is
+the **PR description**, that is also where a `BREAKING CHANGE:` footer goes. Examples:
 
 ```
 feat(frontend): add run-history filter
 fix(backend): handle empty profile list
-wip: spiking new scheduler, not done yet
+chore(deps): bump vite
 ```
 
-> Only `feat`, `fix`, and breaking changes bump a version; `wip` and the rest don't trigger a
-> release. The hook is **opt-in per clone** — if you skip `pre-commit install`, the **Commit Lint**
-> GitHub Action still validates every commit on your pull request as a backstop.
+> Only `feat`, `fix`, and breaking changes bump a version; the rest don't trigger a release. The
+> scope decides *which* component gets released — release-please assigns a change to `backend` or
+> `frontend` by the paths it touches, and each gets its own version, changelog, tag and image tag.
+>
+> A PR that does two unrelated things collapses into one changelog entry under one type. The fix
+> is to split the PR.
+
+The other checks on a PR: **backend** (byte-compile + build the backend image) and **frontend**
+(eslint, `tsc`, Vite build + build the frontend image). Both build the images that actually ship,
+without pushing them, so a bad dependency or base-image bump fails here rather than at release
+time.
 
 ## Attribution & license
 

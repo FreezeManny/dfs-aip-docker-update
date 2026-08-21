@@ -4,6 +4,12 @@ on:
   release:
     types: [published]
 
+# Two releases published close together must not race for the same tags in the
+# registry; an in-flight push is never cancelled half-way.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   OWNER: ${{ github.repository_owner }}
